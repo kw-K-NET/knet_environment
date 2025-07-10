@@ -8,8 +8,7 @@ import type { HistoryParams } from '../types/api';
 const Dashboard: React.FC = () => {
   const [historyParams, setHistoryParams] = useState<HistoryParams>({
     limit: 50,
-    offset: 0,
-    term: 0,
+    time_period: '1d', // Default to 1 day time period
   });
   
   const [refreshTrigger, setRefreshTrigger] = useState<number>(0);

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { HistoryParams } from '../types/api';
+import TimePeriodSelector from './TimePeriodSelector';
 
 interface DataControlsProps {
   params: HistoryParams;
@@ -7,13 +8,26 @@ interface DataControlsProps {
   disabled?: boolean;
 }
 
+type FilterMode = 'time' | 'offset' | 'term';
+
 const DataControls: React.FC<DataControlsProps> = ({ params, onParamsChange, disabled = false }) => {
   const [localParams, setLocalParams] = useState<HistoryParams>(params);
-  const [useTermMode, setUseTermMode] = useState<boolean>(params.term !== undefined && params.term > 0);
+  const [filterMode, setFilterMode] = useState<FilterMode>(() => {
+    if (params.time_period) return 'time';
+    if (params.term && params.term > 0) return 'term';
+    return 'offset';
+  });
 
   useEffect(() => {
     setLocalParams(params);
-    setUseTermMode(params.term !== undefined && params.term > 0);
+    // Update filter mode based on params
+    if (params.time_period) {
+      setFilterMode('time');
+    } else if (params.term && params.term > 0) {
+      setFilterMode('term');
+    } else {
+      setFilterMode('offset');
+    }
   }, [params]);
 
   const handleInputChange = (field: keyof HistoryParams, value: string) => {
@@ -28,39 +42,51 @@ const DataControls: React.FC<DataControlsProps> = ({ params, onParamsChange, dis
       [field]: numValue,
     };
 
-    // Clear offset when using term mode
-    if (field === 'term' && numValue && numValue > 0) {
-      newParams.offset = 0;
-    }
-
-    // Clear term when using offset mode
-    if (field === 'offset' && numValue !== undefined) {
-      newParams.term = 0;
-    }
-
     setLocalParams(newParams);
   };
 
-  const handleModeChange = (termMode: boolean) => {
-    setUseTermMode(termMode);
+  const handleModeChange = (mode: FilterMode) => {
+    setFilterMode(mode);
     
     const newParams = { ...localParams };
-    if (termMode) {
-      // Switch to term mode
+    
+    // Clear all mode-specific parameters
+    delete newParams.time_period;
+    delete newParams.start_time;
+    delete newParams.end_time;
+    newParams.offset = 0;
+    newParams.term = 0;
+
+    if (mode === 'time') {
+      // Set default time period
+      newParams.time_period = '1d';
+      newParams.limit = 50; // Fixed for time mode
+    } else if (mode === 'term') {
+      newParams.term = 5; // Default term value
       newParams.offset = 0;
-      if (!newParams.term || newParams.term <= 0) {
-        newParams.term = 5; // Default term value
-      }
     } else {
-      // Switch to offset mode
+      // offset mode
+      newParams.offset = 0;
       newParams.term = 0;
-      if (newParams.offset === undefined) {
-        newParams.offset = 0; // Default offset value
-      }
     }
     
     setLocalParams(newParams);
     onParamsChange(newParams);
+  };
+
+  const handleTimePeriodChange = (period: string) => {
+    const newParams = {
+      ...localParams,
+      time_period: period as '1d' | '1w' | '1m' | '1y',
+      limit: 50, // Always 50 for time-based filtering
+    };
+    
+    // Clear other time parameters when using preset period
+    delete newParams.start_time;
+    delete newParams.end_time;
+    
+    setLocalParams(newParams);
+    onParamsChange(newParams); // Apply immediately for time mode
   };
 
   const handleApply = () => {
@@ -70,11 +96,10 @@ const DataControls: React.FC<DataControlsProps> = ({ params, onParamsChange, dis
   const handleReset = () => {
     const defaultParams: HistoryParams = {
       limit: 50,
-      offset: 0,
-      term: 0,
+      time_period: '1d',
     };
     setLocalParams(defaultParams);
-    setUseTermMode(false);
+    setFilterMode('time');
     onParamsChange(defaultParams);
   };
 
@@ -84,50 +109,85 @@ const DataControls: React.FC<DataControlsProps> = ({ params, onParamsChange, dis
     <div className="data-controls">
       <h3>Data Filters</h3>
       
-      <div className="control-group">
-        <label htmlFor="limit">
-          Limit:
-          <span className="control-description">Number of records (max: 1000)</span>
-        </label>
-        <input
-          id="limit"
-          type="number"
-          min="1"
-          max="1000"
-          value={localParams.limit || ''}
-          onChange={(e) => handleInputChange('limit', e.target.value)}
-          disabled={disabled}
-          placeholder="50"
-        />
-      </div>
-
+      {/* Filter Mode Selection */}
       <div className="control-group mode-selector">
-        <label>Data Mode:</label>
+        <label>Filter Mode:</label>
         <div className="radio-group">
           <label className="radio-label">
             <input
               type="radio"
-              name="dataMode"
-              checked={!useTermMode}
-              onChange={() => handleModeChange(false)}
+              name="filterMode"
+              checked={filterMode === 'time'}
+              onChange={() => handleModeChange('time')}
               disabled={disabled}
             />
-            Pagination (offset)
+            <div className="mode-info">
+              <span>Time Period</span>
+              <small>Fixed 50 points across time range</small>
+            </div>
           </label>
           <label className="radio-label">
             <input
               type="radio"
-              name="dataMode"
-              checked={useTermMode}
-              onChange={() => handleModeChange(true)}
+              name="filterMode"
+              checked={filterMode === 'offset'}
+              onChange={() => handleModeChange('offset')}
               disabled={disabled}
             />
-            Interval sampling (term)
+            <div className="mode-info">
+              <span>Pagination</span>
+              <small>Skip records with offset</small>
+            </div>
+          </label>
+          <label className="radio-label">
+            <input
+              type="radio"
+              name="filterMode"
+              checked={filterMode === 'term'}
+              onChange={() => handleModeChange('term')}
+              disabled={disabled}
+            />
+            <div className="mode-info">
+              <span>Interval Sampling</span>
+              <small>Every Nth record</small>
+            </div>
           </label>
         </div>
       </div>
 
-      {!useTermMode && (
+      {/* Time Period Selection */}
+      {filterMode === 'time' && (
+        <div className="control-group">
+          <TimePeriodSelector
+            selectedPeriod={localParams.time_period || '1d'}
+            onPeriodChange={handleTimePeriodChange}
+            disabled={disabled}
+          />
+        </div>
+      )}
+
+      {/* Limit Control - Only for non-time modes */}
+      {filterMode !== 'time' && (
+        <div className="control-group">
+          <label htmlFor="limit">
+            Limit:
+            <span className="control-description">Number of records (max: 1000)</span>
+          </label>
+          <input
+            id="limit"
+            type="number"
+            min="1"
+            max="1000"
+            value={localParams.limit || ''}
+            onChange={(e) => handleInputChange('limit', e.target.value)}
+            disabled={disabled}
+            placeholder="50"
+          />
+        </div>
+      )}
+
+      {/* Offset Control */}
+      {filterMode === 'offset' && (
         <div className="control-group">
           <label htmlFor="offset">
             Offset:
@@ -145,7 +205,8 @@ const DataControls: React.FC<DataControlsProps> = ({ params, onParamsChange, dis
         </div>
       )}
 
-      {useTermMode && (
+      {/* Term Control */}
+      {filterMode === 'term' && (
         <div className="control-group">
           <label htmlFor="term">
             Term:
@@ -163,31 +224,45 @@ const DataControls: React.FC<DataControlsProps> = ({ params, onParamsChange, dis
         </div>
       )}
 
-      <div className="control-actions">
-        <button
-          onClick={handleApply}
-          disabled={disabled || !isChanged}
-          className="apply-btn"
-        >
-          Apply Filters
-        </button>
-        <button
-          onClick={handleReset}
-          disabled={disabled}
-          className="reset-btn"
-        >
-          Reset
-        </button>
-      </div>
+      {/* Control Actions - Only show for non-time modes */}
+      {filterMode !== 'time' && (
+        <div className="control-actions">
+          <button
+            onClick={handleApply}
+            disabled={disabled || !isChanged}
+            className="apply-btn"
+          >
+            Apply Filters
+          </button>
+          <button
+            onClick={handleReset}
+            disabled={disabled}
+            className="reset-btn"
+          >
+            Reset
+          </button>
+        </div>
+      )}
 
+      {/* Current Parameters Display */}
       <div className="current-params">
         <h4>Current Parameters:</h4>
         <div className="params-display">
-          <span>Limit: {params.limit || 50}</span>
-          {params.term && params.term > 0 ? (
-            <span>Term: {params.term}</span>
+          {filterMode === 'time' ? (
+            <>
+              <span>Mode: Time Period</span>
+              <span>Period: {params.time_period || '1d'}</span>
+              <span>Points: 50 (fixed)</span>
+            </>
           ) : (
-            <span>Offset: {params.offset || 0}</span>
+            <>
+              <span>Limit: {params.limit || 50}</span>
+              {params.term && params.term > 0 ? (
+                <span>Term: {params.term}</span>
+              ) : (
+                <span>Offset: {params.offset || 0}</span>
+              )}
+            </>
           )}
         </div>
       </div>

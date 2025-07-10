@@ -43,6 +43,7 @@ export class TemperatureAPI {
   static async getHistoryData(params: HistoryParams = {}): Promise<HistoryDataResponse> {
     const queryParams = new URLSearchParams();
     
+    // Add traditional parameters
     if (params.limit !== undefined) {
       queryParams.append('limit', params.limit.toString());
     }
@@ -51,6 +52,17 @@ export class TemperatureAPI {
     }
     if (params.term !== undefined) {
       queryParams.append('term', params.term.toString());
+    }
+
+    // Add time-based parameters
+    if (params.time_period !== undefined) {
+      queryParams.append('time_period', params.time_period);
+    }
+    if (params.start_time !== undefined) {
+      queryParams.append('start_time', params.start_time);
+    }
+    if (params.end_time !== undefined) {
+      queryParams.append('end_time', params.end_time);
     }
 
     const url = `/api/temp/history${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;

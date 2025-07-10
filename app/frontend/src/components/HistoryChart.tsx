@@ -21,8 +21,8 @@ interface HistoryChartProps {
 interface ChartData {
   timestamp: string;
   formattedTime: string;
-  temperature: number;
-  humidity: number;
+  temperature: number | null;
+  humidity: number | null;
 }
 
 const HistoryChart: React.FC<HistoryChartProps> = ({ params, refreshTrigger = 0 }) => {
@@ -32,13 +32,111 @@ const HistoryChart: React.FC<HistoryChartProps> = ({ params, refreshTrigger = 0 
   const [error, setError] = useState<string | null>(null);
   const [responseInfo, setResponseInfo] = useState<Omit<HistoryDataResponse, 'data'> | null>(null);
 
+  const getTimeFormat = (timePeriod?: string): string => {
+    switch (timePeriod) {
+      case '1d': return 'HH:mm';           // Hours and minutes for 1 day
+      case '1w': return 'MM/dd HH:mm';     // Month/day and time for 1 week  
+      case '1m': return 'MM/dd';           // Month/day for 1 month
+      case '1y': return 'yyyy/MM';         // Year/month for 1 year
+      default: return 'MM/dd HH:mm';       // Default format
+    }
+  };
+
   const transformDataForChart = (sensorData: TempSensorData[]): ChartData[] => {
-    return sensorData.map((item) => ({
-      timestamp: item.timestamp,
-      formattedTime: format(new Date(item.timestamp), 'MM/dd HH:mm'),
-      temperature: Number(item.temperature.toFixed(1)),
-      humidity: Number(item.humidity.toFixed(1)),
-    })).reverse(); // Reverse to show oldest first (left to right)
+    if (sensorData.length === 0) {
+      return [];
+    }
+
+    // Sort data by timestamp to ensure proper ordering
+    const sortedData = [...sensorData].sort((a, b) => 
+      new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+    );
+
+    const timeFormat = getTimeFormat(params.time_period);
+
+    // For time-based filtering, handle null data points and format appropriately
+    if (params.time_period) {
+      return sortedData.map(item => {
+        // Backend sends ID=0 for null data points
+        const isNullData = item.id === 0;
+        
+        return {
+          timestamp: item.timestamp,
+          formattedTime: format(new Date(item.timestamp), timeFormat),
+          temperature: isNullData ? null : Number(item.temperature.toFixed(1)),
+          humidity: isNullData ? null : Number(item.humidity.toFixed(1)),
+        };
+      });
+    }
+
+    // For traditional filtering, use the existing gap-filling logic
+    // Calculate the most common interval between consecutive data points
+    const intervals: number[] = [];
+    for (let i = 1; i < sortedData.length; i++) {
+      const interval = new Date(sortedData[i].timestamp).getTime() - 
+                      new Date(sortedData[i-1].timestamp).getTime();
+      intervals.push(interval);
+    }
+
+    // Determine expected interval (use median to handle outliers)
+    let expectedInterval = 60000; // Default to 1 minute
+    if (intervals.length > 0) {
+      intervals.sort((a, b) => a - b);
+      const median = intervals[Math.floor(intervals.length / 2)];
+      // Use the median but ensure it's reasonable (between 10 seconds and 1 hour)
+      expectedInterval = Math.max(10000, Math.min(3600000, median));
+    }
+
+    // Create a map of existing data points for quick lookup
+    const dataMap = new Map<string, TempSensorData>();
+    sortedData.forEach(item => {
+      const key = new Date(item.timestamp).getTime().toString();
+      dataMap.set(key, item);
+    });
+
+    // Generate complete time series from first to last timestamp
+    const startTime = new Date(sortedData[0].timestamp).getTime();
+    const endTime = new Date(sortedData[sortedData.length - 1].timestamp).getTime();
+    
+    const completeTimeSeries: ChartData[] = [];
+    
+    for (let time = startTime; time <= endTime; time += expectedInterval) {
+      const timestamp = new Date(time).toISOString();
+      const timeKey = time.toString();
+      const existingData = dataMap.get(timeKey);
+      
+      // Look for data within a tolerance window (half the expected interval)
+      let foundData = existingData;
+      if (!foundData) {
+        const tolerance = expectedInterval / 2;
+        for (const [key, data] of dataMap.entries()) {
+          const dataTime = parseInt(key);
+          if (Math.abs(dataTime - time) <= tolerance) {
+            foundData = data;
+            break;
+          }
+        }
+      }
+
+      if (foundData) {
+        completeTimeSeries.push({
+          timestamp: foundData.timestamp,
+          formattedTime: format(new Date(foundData.timestamp), timeFormat),
+          temperature: Number(foundData.temperature.toFixed(1)),
+          humidity: Number(foundData.humidity.toFixed(1)),
+        });
+      } else {
+        // Insert null values for missing data points
+        completeTimeSeries.push({
+          timestamp,
+          formattedTime: format(new Date(timestamp), timeFormat),
+          temperature: null,
+          humidity: null,
+        });
+      }
+    }
+
+    return completeTimeSeries;
   };
 
   const fetchHistoryData = async (isInitial: boolean = false) => {
@@ -57,6 +155,11 @@ const HistoryChart: React.FC<HistoryChartProps> = ({ params, refreshTrigger = 0 
         limit: response.limit,
         offset: response.offset,
         term: response.term,
+        time_period: response.time_period,
+        start_time: response.start_time,
+        end_time: response.end_time,
+        total_count: response.total_count,
+        returned_count: response.returned_count,
       });
     } catch (err) {
       setError('Failed to fetch historical data');
@@ -70,23 +173,112 @@ const HistoryChart: React.FC<HistoryChartProps> = ({ params, refreshTrigger = 0 
   useEffect(() => {
     // Only treat as initial loading if we don't have data yet
     fetchHistoryData(data.length === 0);
-  }, [params.limit, params.offset, params.term, refreshTrigger]);
+  }, [params.limit, params.offset, params.term, params.time_period, params.start_time, params.end_time, refreshTrigger]);
 
   const customTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
+      // Check if both values are null (missing data point)
+      const tempValue = payload[0]?.value;
+      const humidityValue = payload[1]?.value;
+      
+      if (tempValue === null && humidityValue === null) {
+        return (
+          <div className="chart-tooltip">
+            <p className="tooltip-label">{`Time: ${label}`}</p>
+            <p className="tooltip-missing" style={{ color: '#9ca3af', fontStyle: 'italic' }}>
+              No data available
+            </p>
+          </div>
+        );
+      }
+      
       return (
         <div className="chart-tooltip">
           <p className="tooltip-label">{`Time: ${label}`}</p>
           <p className="tooltip-temp" style={{ color: '#8884d8' }}>
-            {`Temperature: ${payload[0].value}°C`}
+            {tempValue !== null ? `Temperature: ${tempValue}°C` : 'Temperature: No data'}
           </p>
           <p className="tooltip-humidity" style={{ color: '#82ca9d' }}>
-            {`Humidity: ${payload[1].value}%`}
+            {humidityValue !== null ? `Humidity: ${humidityValue}%` : 'Humidity: No data'}
           </p>
         </div>
       );
     }
     return null;
+  };
+
+  const getTimePeriodLabel = (period?: string) => {
+    switch (period) {
+      case '1d': return 'Last 24 Hours';
+      case '1w': return 'Last 7 Days';
+      case '1m': return 'Last 30 Days';
+      case '1y': return 'Last 365 Days';
+      default: return 'Time Period';
+    }
+  };
+
+  const formatTimeRange = () => {
+    if (!responseInfo || !responseInfo.time_period || !responseInfo.start_time || !responseInfo.end_time) {
+      return null;
+    }
+
+    const startTime = new Date(responseInfo.start_time);
+    const endTime = new Date(responseInfo.end_time);
+    
+    const formatDate = (date: Date) => {
+      switch (responseInfo.time_period) {
+        case '1d': 
+          return format(date, 'MMM dd HH:mm');
+        case '1w':
+          return format(date, 'MMM dd HH:mm');
+        case '1m':
+          return format(date, 'MMM dd');
+        case '1y':
+          return format(date, 'yyyy/MM');
+        default:
+          return format(date, 'MMM dd HH:mm');
+      }
+    };
+
+    return `${formatDate(startTime)} → ${formatDate(endTime)}`;
+  };
+
+  const getDataAvailability = () => {
+    if (!responseInfo?.time_period) return null;
+    
+    const nonNullCount = data.filter(d => d.temperature !== null && d.humidity !== null).length;
+    const percentage = Math.round((nonNullCount / data.length) * 100);
+    
+    return { nonNullCount, percentage };
+  };
+
+  const getMostRecentDataInfo = () => {
+    if (!responseInfo?.time_period || data.length === 0) return null;
+    
+    // In time period mode, the last data point is guaranteed to be the most recent
+    const mostRecentPoint = data[data.length - 1];
+    
+    // Check if it's actual data or null
+    const hasRecentData = mostRecentPoint && mostRecentPoint.temperature !== null;
+    
+    return {
+      hasRecentData,
+      timestamp: mostRecentPoint?.timestamp,
+      point: mostRecentPoint
+    };
+  };
+
+  const getXAxisInterval = () => {
+    // Calculate appropriate interval based on data length and time period
+    if (data.length <= 10) return 0; // Show all labels for small datasets
+    
+    switch (params.time_period) {
+      case '1d': return Math.ceil(data.length / 6);  // ~6 labels for 1 day
+      case '1w': return Math.ceil(data.length / 7);  // ~7 labels for 1 week
+      case '1m': return Math.ceil(data.length / 8);  // ~8 labels for 1 month
+      case '1y': return Math.ceil(data.length / 12); // ~12 labels for 1 year
+      default: return Math.ceil(data.length / 8);    // Default ~8 labels
+    }
   };
 
   // Only show loading spinner for initial load (when no data exists)
@@ -123,7 +315,36 @@ const HistoryChart: React.FC<HistoryChartProps> = ({ params, refreshTrigger = 0 
   return (
     <div className="history-chart">
       <div className="chart-header">
-        <h2>Historical Data</h2>
+        <div className="chart-header-left">
+          <h2>Historical Data</h2>
+          {responseInfo?.time_period && formatTimeRange() && (
+            <div className="time-range-display">
+              <span className="time-range">{formatTimeRange()}</span>
+              {(() => {
+                const availability = getDataAvailability();
+                const recentInfo = getMostRecentDataInfo();
+                
+                return (
+                  <div className="data-status">
+                    {availability && availability.percentage < 100 && (
+                      <span className="data-availability">
+                        {availability.nonNullCount}/{data.length} points ({availability.percentage}% data available)
+                      </span>
+                    )}
+                    {recentInfo && (
+                      <span className={`recent-data-status ${recentInfo.hasRecentData ? 'has-data' : 'no-data'}`}>
+                        Most recent: {recentInfo.hasRecentData 
+                          ? `${format(new Date(recentInfo.timestamp!), 'MMM dd HH:mm:ss')} ✓`
+                          : 'No recent data available'
+                        }
+                      </span>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+          )}
+        </div>
         <div className="chart-header-right">
           {isRefreshing && (
             <div className="refresh-indicator" title="Refreshing data...">
@@ -132,10 +353,22 @@ const HistoryChart: React.FC<HistoryChartProps> = ({ params, refreshTrigger = 0 
           )}
           {responseInfo && (
             <div className="chart-info">
-              <span>Records: {data.length}</span>
-              <span>Limit: {responseInfo.limit}</span>
-              {responseInfo.term > 0 && <span>Interval: {responseInfo.term}</span>}
-              {responseInfo.term === 0 && <span>Offset: {responseInfo.offset}</span>}
+              <span>Points: {data.length}</span>
+              {responseInfo.time_period ? (
+                <>
+                  <span>Period: {getTimePeriodLabel(responseInfo.time_period)}</span>
+                  {responseInfo.total_count && (
+                    <span>Available: {responseInfo.total_count}</span>
+                  )}
+                  <span className="recent-guarantee">Recent data ✓</span>
+                </>
+              ) : (
+                <>
+                  <span>Limit: {responseInfo.limit}</span>
+                  {responseInfo.term > 0 && <span>Interval: {responseInfo.term}</span>}
+                  {responseInfo.term === 0 && <span>Offset: {responseInfo.offset}</span>}
+                </>
+              )}
             </div>
           )}
         </div>
@@ -154,7 +387,10 @@ const HistoryChart: React.FC<HistoryChartProps> = ({ params, refreshTrigger = 0 
             <XAxis 
               dataKey="formattedTime" 
               tick={{ fontSize: 12 }}
-              interval={Math.ceil(data.length / 8)} // Show ~8 labels max
+              interval={getXAxisInterval()}
+              angle={params.time_period === '1d' ? 0 : -45}
+              textAnchor={params.time_period === '1d' ? 'middle' : 'end'}
+              height={params.time_period === '1d' ? 60 : 80}
             />
             <YAxis 
               yAxisId="temperature"
@@ -180,6 +416,7 @@ const HistoryChart: React.FC<HistoryChartProps> = ({ params, refreshTrigger = 0 
               strokeWidth={2}
               dot={{ r: 3 }}
               name="Temperature (°C)"
+              connectNulls={false}
             />
             <Line
               yAxisId="humidity"
@@ -189,6 +426,7 @@ const HistoryChart: React.FC<HistoryChartProps> = ({ params, refreshTrigger = 0 
               strokeWidth={2}
               dot={{ r: 3 }}
               name="Humidity (%)"
+              connectNulls={false}
             />
           </LineChart>
         </ResponsiveContainer>
