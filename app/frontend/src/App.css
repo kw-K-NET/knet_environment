@@ -3,7 +3,6 @@
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
@@ -150,7 +149,7 @@
   text-align: center;
   padding: 1.5rem;
   border-radius: 0.75rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #b4240b 0%, #771301 100%);
   color: white;
   box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
 }
@@ -313,7 +312,7 @@
 
 .control-group input[type="number"]:focus {
   outline: none;
-  border-color: #4299e1;
+  border-color: #8A1601;
   box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.1);
 }
 
@@ -436,7 +435,7 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  color: #4299e1;
+  color: #8A1601;
   font-size: 0.875rem;
 }
 

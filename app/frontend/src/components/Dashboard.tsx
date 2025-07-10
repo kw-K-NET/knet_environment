@@ -81,7 +81,7 @@ const Dashboard: React.FC = () => {
               className="refresh-btn"
               title="Refresh data manually"
             >
-              🔄 Refresh
+              Refresh
             </button>
             
             <label className="auto-refresh-control">
@@ -99,7 +99,6 @@ const Dashboard: React.FC = () => {
                 onChange={(e) => handleIntervalChange(Number(e.target.value))}
                 className="interval-select"
               >
-                <option value={10}>10s</option>
                 <option value={30}>30s</option>
                 <option value={60}>1m</option>
                 <option value={300}>5m</option>
@@ -141,8 +140,8 @@ const Dashboard: React.FC = () => {
 
       <footer className="dashboard-footer">
         <div className="footer-info">
-          <span>KNet Environment Monitoring System</span>
-          <span>Backend API: {window.location.protocol}//localhost:38333</span>
+          <span>K-NET Environment Monitoring System</span>
+          <span>Backend API: {window.location.hostname}/api/</span>
         </div>
       </footer>
     </div>
