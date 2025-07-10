@@ -1,9 +1,7 @@
 import axios, { type AxiosResponse } from 'axios';
 import type { LatestDataResponse, HistoryDataResponse, HealthResponse, HistoryParams } from '../types/api';
 
-// Configure axios instance with base URL
-// The backend runs on port 38333 based on docker-compose.yml
-const API_BASE_URL = 'http://localhost:38333';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,

@@ -4,6 +4,7 @@
 # Database Configuration
 # Sensor Configuration
 # Server Configuration
+# VITE_API_BASE_URL Configuration
 
 services:
   postgres:
@@ -59,6 +60,27 @@ services:
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:38333/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    build:
+      context: ./app/frontend
+      dockerfile: Dockerfile
+    container_name: knet_frontend
+    environment:
+      VITE_API_BASE_URL: http://localhost:38333
+    ports:
+      - "3300:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - knet_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/health"]
       interval: 30s
       timeout: 10s
       retries: 3
