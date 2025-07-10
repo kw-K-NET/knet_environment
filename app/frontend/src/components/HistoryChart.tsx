@@ -71,11 +71,12 @@ const HistoryChart: React.FC<HistoryChartProps> = ({ params, refreshTrigger = 0 
         const chartData: ChartData = {
           timestamp: item.timestamp,
           formattedTime: format(new Date(item.timestamp), timeFormat),
-          temperature: isNullData ? null : Number(item.temperature.toFixed(1)),
-          humidity: isNullData ? null : Number(item.humidity.toFixed(1)),
+          // Use default aggregated values (±3) for main display, fallback to raw values
+          temperature: isNullData ? null : (item.default_aggregated?.temperature ? Number(item.default_aggregated.temperature.toFixed(1)) : Number(item.temperature.toFixed(1))),
+          humidity: isNullData ? null : (item.default_aggregated?.humidity ? Number(item.default_aggregated.humidity.toFixed(1)) : Number(item.humidity.toFixed(1))),
         };
 
-        // Add aggregated values if available
+        // Add configurable aggregated values if available (for overlay lines)
         if (item.aggregated && !isNullData) {
           if (item.aggregated.temperature) {
             chartData.tempAvg = Number(item.aggregated.temperature.average.toFixed(1));
@@ -144,12 +145,30 @@ const HistoryChart: React.FC<HistoryChartProps> = ({ params, refreshTrigger = 0 
       }
 
       if (foundData) {
-        completeTimeSeries.push({
+        const chartData: ChartData = {
           timestamp: foundData.timestamp,
           formattedTime: format(new Date(foundData.timestamp), timeFormat),
-          temperature: Number(foundData.temperature.toFixed(1)),
-          humidity: Number(foundData.humidity.toFixed(1)),
-        });
+          // Use default aggregated values (±3) for main display, fallback to raw values
+          temperature: foundData.default_aggregated?.temperature ? Number(foundData.default_aggregated.temperature.toFixed(1)) : Number(foundData.temperature.toFixed(1)),
+          humidity: foundData.default_aggregated?.humidity ? Number(foundData.default_aggregated.humidity.toFixed(1)) : Number(foundData.humidity.toFixed(1)),
+        };
+
+        // Add configurable aggregated values if available (for overlay lines)
+        if (foundData.aggregated) {
+          if (foundData.aggregated.temperature) {
+            chartData.tempAvg = Number(foundData.aggregated.temperature.average.toFixed(1));
+            chartData.tempMax = Number(foundData.aggregated.temperature.maximum.toFixed(1));
+            chartData.tempMin = Number(foundData.aggregated.temperature.minimum.toFixed(1));
+          }
+          if (foundData.aggregated.humidity) {
+            chartData.humidityAvg = Number(foundData.aggregated.humidity.average.toFixed(1));
+            chartData.humidityMax = Number(foundData.aggregated.humidity.maximum.toFixed(1));
+            chartData.humidityMin = Number(foundData.aggregated.humidity.minimum.toFixed(1));
+            chartData.aggregateCount = foundData.aggregated.humidity.count;
+          }
+        }
+
+        completeTimeSeries.push(chartData);
       } else {
         // Insert null values for missing data points
         completeTimeSeries.push({
@@ -236,11 +255,11 @@ const HistoryChart: React.FC<HistoryChartProps> = ({ params, refreshTrigger = 0 
             {humidityValue !== null ? `Humidity: ${humidityValue}%` : 'Humidity: No data'}
           </p>
           
-          {/* Aggregated values if available */}
+          {/* Extended aggregated values if available */}
           {hasAggregatedData && (
             <div className="tooltip-aggregated" style={{ marginTop: '8px', borderTop: '1px solid #ccc', paddingTop: '8px' }}>
               <p style={{ fontSize: '12px', color: '#666', marginBottom: '4px' }}>
-                Aggregated ({dataPoint.aggregateCount} points):
+                Extended Analysis ({dataPoint.aggregateCount} points):
               </p>
               
               {dataPoint?.tempAvg !== undefined && (
@@ -435,7 +454,7 @@ const HistoryChart: React.FC<HistoryChartProps> = ({ params, refreshTrigger = 0 
               dataKey="temperature"
               stroke="#8884d8"
               strokeWidth={2}
-              dot={{ r: 3 }}
+              dot={false}
               name="Temperature (°C)"
               connectNulls={false}
             />
@@ -445,7 +464,7 @@ const HistoryChart: React.FC<HistoryChartProps> = ({ params, refreshTrigger = 0 
               dataKey="humidity"
               stroke="#82ca9d"
               strokeWidth={2}
-              dot={{ r: 3 }}
+              dot={false}
               name="Humidity (%)"
               connectNulls={false}
             />

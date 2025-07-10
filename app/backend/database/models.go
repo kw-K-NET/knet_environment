@@ -7,8 +7,15 @@ type TempSensorData struct {
 	Temperature float64   `json:"temperature" db:"temperature"`
 	Humidity    float64   `json:"humidity" db:"humidity"`
 	Timestamp   time.Time `json:"timestamp" db:"timestamp"`
-	// Aggregated values calculated from surrounding data points (±100 points)
+	// Default aggregated values for main display (±3 window)
+	DefaultAggregated *DefaultAggregatedValues `json:"default_aggregated,omitempty"`
+	// Configurable aggregated values calculated from surrounding data points (±100 points by default)
 	Aggregated *AggregatedValues `json:"aggregated,omitempty"`
+}
+
+type DefaultAggregatedValues struct {
+	Temperature float64 `json:"temperature"` // Average with ±3 window
+	Humidity    float64 `json:"humidity"`    // Average with ±3 window
 }
 
 type AggregatedValues struct {

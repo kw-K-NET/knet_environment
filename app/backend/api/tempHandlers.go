@@ -142,13 +142,16 @@ func getTempSensorDataHistory(db *database.Database) gin.HandlerFunc {
 				return
 			}
 
-			// Apply aggregation if requested
+			// Always apply aggregation (default ±3 for main display + configurable if requested)
 			if includeAggregates {
 				data, err = db.GetTempSensorDataWithAggregation(data, aggregateWindowSize)
-				if err != nil {
-					c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to calculate aggregated values"})
-					return
-				}
+			} else {
+				// Still calculate default aggregated values (±3) for main display only
+				data, err = db.GetTempSensorDataWithAggregation(data, 0) // 0 means skip configurable aggregation
+			}
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to calculate aggregated values"})
+				return
 			}
 
 			// Get total count for metadata
@@ -187,13 +190,16 @@ func getTempSensorDataHistory(db *database.Database) gin.HandlerFunc {
 				return
 			}
 
-			// Apply aggregation if requested
+			// Always apply aggregation (default ±3 for main display + configurable if requested)
 			if includeAggregates {
 				data, err = db.GetTempSensorDataWithAggregation(data, aggregateWindowSize)
-				if err != nil {
-					c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to calculate aggregated values"})
-					return
-				}
+			} else {
+				// Still calculate default aggregated values (±3) for main display only
+				data, err = db.GetTempSensorDataWithAggregation(data, 0) // 0 means skip configurable aggregation
+			}
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to calculate aggregated values"})
+				return
 			}
 
 			response := gin.H{
@@ -220,13 +226,16 @@ func getTempSensorDataHistory(db *database.Database) gin.HandlerFunc {
 				return
 			}
 
-			// Apply aggregation if requested
+			// Always apply aggregation (default ±3 for main display + configurable if requested)
 			if includeAggregates {
 				data, err = db.GetTempSensorDataWithAggregation(data, aggregateWindowSize)
-				if err != nil {
-					c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to calculate aggregated values"})
-					return
-				}
+			} else {
+				// Still calculate default aggregated values (±3) for main display only
+				data, err = db.GetTempSensorDataWithAggregation(data, 0) // 0 means skip configurable aggregation
+			}
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to calculate aggregated values"})
+				return
 			}
 
 			response := gin.H{

@@ -311,17 +311,78 @@ func (db *Database) GetTempSensorDataWithAggregation(baseData []TempSensorData, 
 	result := make([]TempSensorData, len(baseData))
 	copy(result, baseData)
 
-	// For each data point, calculate aggregated values using surrounding data
+	// For each data point, calculate both default (±3) and configurable aggregated values
 	for i := range result {
-		aggregated, err := db.calculateAggregatesForDataPoint(result[i], windowSize)
+		// Always calculate default aggregated values (±3 window) for main display
+		defaultAggregated, err := db.calculateDefaultAggregatesForDataPoint(result[i])
 		if err != nil {
 			// Log error but continue with other points
 			continue
 		}
-		result[i].Aggregated = aggregated
+		result[i].DefaultAggregated = defaultAggregated
+
+		// Calculate configurable aggregated values only if windowSize > 0
+		if windowSize > 0 {
+			aggregated, err := db.calculateAggregatesForDataPoint(result[i], windowSize)
+			if err != nil {
+				// Log error but continue with other points
+				continue
+			}
+			result[i].Aggregated = aggregated
+		}
 	}
 
 	return result, nil
+}
+
+// calculateDefaultAggregatesForDataPoint calculates avg for main display using ±3 window
+func (db *Database) calculateDefaultAggregatesForDataPoint(dataPoint TempSensorData) (*DefaultAggregatedValues, error) {
+	// Get surrounding data points based on ID range (±3 from current point)
+	startID := dataPoint.ID - 3
+	endID := dataPoint.ID + 3
+
+	// Ensure startID is not negative
+	if startID < 1 {
+		startID = 1
+	}
+
+	query := `
+	SELECT temperature, humidity 
+	FROM temp_sensor_data 
+	WHERE id >= $1 AND id <= $2 
+	ORDER BY id ASC`
+
+	rows, err := db.Query(query, startID, endID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var temperatures []float64
+	var humidities []float64
+
+	for rows.Next() {
+		var temp, hum float64
+		err := rows.Scan(&temp, &hum)
+		if err != nil {
+			return nil, err
+		}
+		temperatures = append(temperatures, temp)
+		humidities = append(humidities, hum)
+	}
+
+	if len(temperatures) == 0 {
+		return nil, nil // No surrounding data found
+	}
+
+	// Calculate averages
+	tempStats := calculateStatsForSlice(temperatures)
+	humStats := calculateStatsForSlice(humidities)
+
+	return &DefaultAggregatedValues{
+		Temperature: tempStats.Average,
+		Humidity:    humStats.Average,
+	}, nil
 }
 
 // calculateAggregatesForDataPoint calculates avg/max/min for a single data point

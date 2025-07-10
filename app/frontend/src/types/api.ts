@@ -3,8 +3,15 @@ export interface TempSensorData {
   temperature: number;
   humidity: number;
   timestamp: string;
-  // Aggregated values calculated from surrounding data points (±100 points)
+  // Default aggregated values for main display (±3 window)
+  default_aggregated?: DefaultAggregatedValues;
+  // Configurable aggregated values calculated from surrounding data points (±100 points by default)
   aggregated?: AggregatedValues;
+}
+
+export interface DefaultAggregatedValues {
+  temperature: number; // Average with ±3 window
+  humidity: number;    // Average with ±3 window
 }
 
 export interface AggregatedValues {
