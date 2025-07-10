@@ -9,6 +9,8 @@ const Dashboard: React.FC = () => {
   const [historyParams, setHistoryParams] = useState<HistoryParams>({
     limit: 50,
     time_period: '1d',
+    include_aggregates: false,
+    aggregate_window: 100,
   });
   
   const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
@@ -29,10 +31,12 @@ const Dashboard: React.FC = () => {
   }, [autoRefresh, refreshInterval]);
 
   const handleParamsChange = useCallback((newParams: HistoryParams) => {
-    // Ensure we only accept time period parameters
+    // Ensure we properly handle all parameters including aggregation
     const sanitizedParams: HistoryParams = {
       limit: 50, // Always 50 for time period mode
       time_period: newParams.time_period || '1d',
+      include_aggregates: newParams.include_aggregates || false,
+      aggregate_window: newParams.aggregate_window || 100,
     };
     setHistoryParams(sanitizedParams);
   }, []);

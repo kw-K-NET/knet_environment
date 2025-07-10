@@ -75,6 +75,15 @@ func getTempSensorDataHistory(db *database.Database) gin.HandlerFunc {
 			}
 		}
 
+		// Parse aggregation parameters
+		includeAggregates := c.Query("include_aggregates") == "true"
+		aggregateWindowSize := 100 // Default ±100 points
+		if w := c.Query("aggregate_window"); w != "" {
+			if parsedWindow, err := strconv.Atoi(w); err == nil && parsedWindow > 0 && parsedWindow <= 500 {
+				aggregateWindowSize = parsedWindow
+			}
+		}
+
 		// Parse time-based parameters
 		timePeriod := c.Query("time_period")  // "1d", "1w", "1m", "1y"
 		startTimeStr := c.Query("start_time") // ISO 8601 format
@@ -133,13 +142,22 @@ func getTempSensorDataHistory(db *database.Database) gin.HandlerFunc {
 				return
 			}
 
+			// Apply aggregation if requested
+			if includeAggregates {
+				data, err = db.GetTempSensorDataWithAggregation(data, aggregateWindowSize)
+				if err != nil {
+					c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to calculate aggregated values"})
+					return
+				}
+			}
+
 			// Get total count for metadata
 			totalCount, countErr := db.GetDataCountInTimeRange(startTime, endTime)
 			if countErr != nil {
 				totalCount = len(data) // fallback
 			}
 
-			c.JSON(http.StatusOK, gin.H{
+			response := gin.H{
 				"data":           data,
 				"limit":          limit,
 				"offset":         0,
@@ -149,7 +167,17 @@ func getTempSensorDataHistory(db *database.Database) gin.HandlerFunc {
 				"end_time":       endTime.Format(time.RFC3339),
 				"total_count":    totalCount,
 				"returned_count": len(data),
-			})
+			}
+
+			// Add aggregation metadata if used
+			if includeAggregates {
+				response["aggregation"] = gin.H{
+					"enabled":     true,
+					"window_size": aggregateWindowSize,
+				}
+			}
+
+			c.JSON(http.StatusOK, response)
 
 		} else if term > 0 {
 			// Traditional term-based mode
@@ -158,12 +186,32 @@ func getTempSensorDataHistory(db *database.Database) gin.HandlerFunc {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get sensor data with term"})
 				return
 			}
-			c.JSON(http.StatusOK, gin.H{
+
+			// Apply aggregation if requested
+			if includeAggregates {
+				data, err = db.GetTempSensorDataWithAggregation(data, aggregateWindowSize)
+				if err != nil {
+					c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to calculate aggregated values"})
+					return
+				}
+			}
+
+			response := gin.H{
 				"data":   data,
 				"limit":  limit,
 				"offset": offset,
 				"term":   term,
-			})
+			}
+
+			// Add aggregation metadata if used
+			if includeAggregates {
+				response["aggregation"] = gin.H{
+					"enabled":     true,
+					"window_size": aggregateWindowSize,
+				}
+			}
+
+			c.JSON(http.StatusOK, response)
 		} else {
 			// Traditional offset-based mode
 			data, err = db.GetTempSensorData(limit, offset)
@@ -171,12 +219,32 @@ func getTempSensorDataHistory(db *database.Database) gin.HandlerFunc {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get sensor data"})
 				return
 			}
-			c.JSON(http.StatusOK, gin.H{
+
+			// Apply aggregation if requested
+			if includeAggregates {
+				data, err = db.GetTempSensorDataWithAggregation(data, aggregateWindowSize)
+				if err != nil {
+					c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to calculate aggregated values"})
+					return
+				}
+			}
+
+			response := gin.H{
 				"data":   data,
 				"limit":  limit,
 				"offset": offset,
 				"term":   term,
-			})
+			}
+
+			// Add aggregation metadata if used
+			if includeAggregates {
+				response["aggregation"] = gin.H{
+					"enabled":     true,
+					"window_size": aggregateWindowSize,
+				}
+			}
+
+			c.JSON(http.StatusOK, response)
 		}
 	}
 }

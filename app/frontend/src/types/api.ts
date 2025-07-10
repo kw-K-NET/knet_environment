@@ -3,17 +3,41 @@ export interface TempSensorData {
   temperature: number;
   humidity: number;
   timestamp: string;
+  // Aggregated values calculated from surrounding data points (±100 points)
+  aggregated?: AggregatedValues;
+}
+
+export interface AggregatedValues {
+  temperature?: TemperatureAggregates;
+  humidity?: HumidityAggregates;
+}
+
+export interface TemperatureAggregates {
+  average: number;
+  maximum: number;
+  minimum: number;
+  count: number; // Number of data points used for calculation
+}
+
+export interface HumidityAggregates {
+  average: number;
+  maximum: number;
+  minimum: number;
+  count: number; // Number of data points used for calculation
 }
 
 export interface LatestDataResponse extends TempSensorData {}
 
-// Simplified to only support time period mode
+// Enhanced to support aggregation parameters
 export interface HistoryParams {
   limit: number; // Always 50 for time period mode
   time_period: '1d' | '1w' | '1m' | '1y';
+  // New aggregation parameters
+  include_aggregates?: boolean;
+  aggregate_window?: number; // ±N points for calculation (default: 100)
 }
 
-// Keep full response interface for backend compatibility
+// Enhanced response interface with aggregation metadata
 export interface HistoryDataResponse {
   data: TempSensorData[];
   limit: number;
@@ -25,6 +49,13 @@ export interface HistoryDataResponse {
   end_time?: string;
   total_count?: number;
   returned_count?: number;
+  // New aggregation metadata
+  aggregation?: AggregationMetadata;
+}
+
+export interface AggregationMetadata {
+  enabled: boolean;
+  window_size: number;
 }
 
 export interface HealthResponse {
@@ -36,6 +67,13 @@ export interface TimePeriodOption {
   value: '1d' | '1w' | '1m' | '1y';
   label: string;
   description: string;
+}
+
+// Aggregation control options for UI
+export interface AggregationOption {
+  key: keyof AggregatedValues;
+  label: string;
+  enabled: boolean;
 }
 
 export interface ApiError {

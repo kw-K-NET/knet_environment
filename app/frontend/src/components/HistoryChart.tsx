@@ -23,6 +23,14 @@ interface ChartData {
   formattedTime: string;
   temperature: number | null;
   humidity: number | null;
+  // Aggregated values
+  tempAvg?: number | null;
+  tempMax?: number | null;
+  tempMin?: number | null;
+  humidityAvg?: number | null;
+  humidityMax?: number | null;
+  humidityMin?: number | null;
+  aggregateCount?: number; // Number of points used for aggregation
 }
 
 const HistoryChart: React.FC<HistoryChartProps> = ({ params, refreshTrigger = 0 }) => {
@@ -60,12 +68,29 @@ const HistoryChart: React.FC<HistoryChartProps> = ({ params, refreshTrigger = 0 
         // Backend sends ID=0 for null data points
         const isNullData = item.id === 0;
         
-        return {
+        const chartData: ChartData = {
           timestamp: item.timestamp,
           formattedTime: format(new Date(item.timestamp), timeFormat),
           temperature: isNullData ? null : Number(item.temperature.toFixed(1)),
           humidity: isNullData ? null : Number(item.humidity.toFixed(1)),
         };
+
+        // Add aggregated values if available
+        if (item.aggregated && !isNullData) {
+          if (item.aggregated.temperature) {
+            chartData.tempAvg = Number(item.aggregated.temperature.average.toFixed(1));
+            chartData.tempMax = Number(item.aggregated.temperature.maximum.toFixed(1));
+            chartData.tempMin = Number(item.aggregated.temperature.minimum.toFixed(1));
+          }
+          if (item.aggregated.humidity) {
+            chartData.humidityAvg = Number(item.aggregated.humidity.average.toFixed(1));
+            chartData.humidityMax = Number(item.aggregated.humidity.maximum.toFixed(1));
+            chartData.humidityMin = Number(item.aggregated.humidity.minimum.toFixed(1));
+            chartData.aggregateCount = item.aggregated.humidity.count; // Use humidity count as reference
+          }
+        }
+
+        return chartData;
       });
     }
 
@@ -160,6 +185,7 @@ const HistoryChart: React.FC<HistoryChartProps> = ({ params, refreshTrigger = 0 
         end_time: response.end_time,
         total_count: response.total_count,
         returned_count: response.returned_count,
+        aggregation: response.aggregation,
       });
       console.log(responseInfo);
     } catch (err) {
@@ -178,9 +204,12 @@ const HistoryChart: React.FC<HistoryChartProps> = ({ params, refreshTrigger = 0 
 
   const customTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
+      // Get the data point to access aggregated values
+      const dataPoint = payload[0]?.payload;
+      
       // Check if both values are null (missing data point)
-      const tempValue = payload[0]?.value;
-      const humidityValue = payload[1]?.value;
+      const tempValue = payload.find((p: any) => p.dataKey === 'temperature')?.value;
+      const humidityValue = payload.find((p: any) => p.dataKey === 'humidity')?.value;
       
       if (tempValue === null && humidityValue === null) {
         return (
@@ -193,15 +222,44 @@ const HistoryChart: React.FC<HistoryChartProps> = ({ params, refreshTrigger = 0 
         );
       }
       
+      const hasAggregatedData = dataPoint?.tempAvg !== undefined || dataPoint?.humidityAvg !== undefined;
+      
       return (
         <div className="chart-tooltip">
           <p className="tooltip-label">{`Time: ${label}`}</p>
+          
+          {/* Main values */}
           <p className="tooltip-temp" style={{ color: '#8884d8' }}>
             {tempValue !== null ? `Temperature: ${tempValue}°C` : 'Temperature: No data'}
           </p>
           <p className="tooltip-humidity" style={{ color: '#82ca9d' }}>
             {humidityValue !== null ? `Humidity: ${humidityValue}%` : 'Humidity: No data'}
           </p>
+          
+          {/* Aggregated values if available */}
+          {hasAggregatedData && (
+            <div className="tooltip-aggregated" style={{ marginTop: '8px', borderTop: '1px solid #ccc', paddingTop: '8px' }}>
+              <p style={{ fontSize: '12px', color: '#666', marginBottom: '4px' }}>
+                Aggregated ({dataPoint.aggregateCount} points):
+              </p>
+              
+              {dataPoint?.tempAvg !== undefined && (
+                <div style={{ fontSize: '11px', color: '#8884d8' }}>
+                  <p>Temp Avg: {dataPoint.tempAvg}°C</p>
+                  <p>Temp Max: {dataPoint.tempMax}°C</p>
+                  <p>Temp Min: {dataPoint.tempMin}°C</p>
+                </div>
+              )}
+              
+              {dataPoint?.humidityAvg !== undefined && (
+                <div style={{ fontSize: '11px', color: '#82ca9d' }}>
+                  <p>Humidity Avg: {dataPoint.humidityAvg}%</p>
+                  <p>Humidity Max: {dataPoint.humidityMax}%</p>
+                  <p>Humidity Min: {dataPoint.humidityMin}%</p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       );
     }
@@ -224,9 +282,17 @@ const HistoryChart: React.FC<HistoryChartProps> = ({ params, refreshTrigger = 0 
       };
     }
     
-    // Find actual min/max values in the data
+    // Find actual min/max values in the data, including aggregated values
     const temperatures = validData.map(d => d.temperature!);
     const humidities = validData.map(d => d.humidity!);
+    
+    // Include aggregated values in range calculation if available
+    validData.forEach(d => {
+      if (d.tempMax !== undefined && d.tempMax !== null) temperatures.push(d.tempMax);
+      if (d.tempMin !== undefined && d.tempMin !== null) temperatures.push(d.tempMin);
+      if (d.humidityMax !== undefined && d.humidityMax !== null) humidities.push(d.humidityMax);
+      if (d.humidityMin !== undefined && d.humidityMin !== null) humidities.push(d.humidityMin);
+    });
     
     const actualTempMin = Math.min(...temperatures);
     const actualTempMax = Math.max(...temperatures);
@@ -383,6 +449,81 @@ const HistoryChart: React.FC<HistoryChartProps> = ({ params, refreshTrigger = 0 
               name="Humidity (%)"
               connectNulls={false}
             />
+            
+            {/* Aggregated Lines - Only show if aggregation is enabled */}
+            {params.include_aggregates && (
+              <>
+                {/* Temperature Aggregated Lines */}
+                <Line
+                  yAxisId="temperature"
+                  type="monotone"
+                  dataKey="tempAvg"
+                  stroke="#6366f1"
+                  strokeWidth={1}
+                  strokeDasharray="5 5"
+                  dot={false}
+                  name="Temp Average"
+                  connectNulls={false}
+                />
+                <Line
+                  yAxisId="temperature"
+                  type="monotone"
+                  dataKey="tempMax"
+                  stroke="#ef4444"
+                  strokeWidth={1}
+                  strokeDasharray="2 2"
+                  dot={false}
+                  name="Temp Maximum"
+                  connectNulls={false}
+                />
+                <Line
+                  yAxisId="temperature"
+                  type="monotone"
+                  dataKey="tempMin"
+                  stroke="#3b82f6"
+                  strokeWidth={1}
+                  strokeDasharray="2 2"
+                  dot={false}
+                  name="Temp Minimum"
+                  connectNulls={false}
+                />
+                
+                {/* Humidity Aggregated Lines */}
+                <Line
+                  yAxisId="humidity"
+                  type="monotone"
+                  dataKey="humidityAvg"
+                  stroke="#059669"
+                  strokeWidth={1}
+                  strokeDasharray="5 5"
+                  dot={false}
+                  name="Humidity Average"
+                  connectNulls={false}
+                />
+                <Line
+                  yAxisId="humidity"
+                  type="monotone"
+                  dataKey="humidityMax"
+                  stroke="#dc2626"
+                  strokeWidth={1}
+                  strokeDasharray="2 2"
+                  dot={false}
+                  name="Humidity Maximum"
+                  connectNulls={false}
+                />
+                <Line
+                  yAxisId="humidity"
+                  type="monotone"
+                  dataKey="humidityMin"
+                  stroke="#2563eb"
+                  strokeWidth={1}
+                  strokeDasharray="2 2"
+                  dot={false}
+                  name="Humidity Minimum"
+                  connectNulls={false}
+                />
+              </>
+            )}
           </LineChart>
         </ResponsiveContainer>
       </div>

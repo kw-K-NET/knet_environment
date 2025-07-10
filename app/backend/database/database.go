@@ -299,3 +299,124 @@ func (db *Database) GetDataCountInTimeRange(startTime, endTime time.Time) (int, 
 	err := db.QueryRow(query, startTime, endTime).Scan(&count)
 	return count, err
 }
+
+// GetTempSensorDataWithAggregation enhances data points with aggregated values
+// calculated from surrounding ±windowSize data points
+func (db *Database) GetTempSensorDataWithAggregation(baseData []TempSensorData, windowSize int) ([]TempSensorData, error) {
+	if len(baseData) == 0 {
+		return baseData, nil
+	}
+
+	// Create a copy of the data to avoid modifying the original
+	result := make([]TempSensorData, len(baseData))
+	copy(result, baseData)
+
+	// For each data point, calculate aggregated values using surrounding data
+	for i := range result {
+		aggregated, err := db.calculateAggregatesForDataPoint(result[i], windowSize)
+		if err != nil {
+			// Log error but continue with other points
+			continue
+		}
+		result[i].Aggregated = aggregated
+	}
+
+	return result, nil
+}
+
+// calculateAggregatesForDataPoint calculates avg/max/min for a single data point
+// using ±windowSize surrounding data points
+func (db *Database) calculateAggregatesForDataPoint(dataPoint TempSensorData, windowSize int) (*AggregatedValues, error) {
+	// Get surrounding data points based on ID range (±windowSize from current point)
+	startID := dataPoint.ID - windowSize
+	endID := dataPoint.ID + windowSize
+
+	// Ensure startID is not negative
+	if startID < 1 {
+		startID = 1
+	}
+
+	query := `
+	SELECT temperature, humidity 
+	FROM temp_sensor_data 
+	WHERE id >= $1 AND id <= $2 
+	ORDER BY id ASC`
+
+	rows, err := db.Query(query, startID, endID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var temperatures []float64
+	var humidities []float64
+
+	for rows.Next() {
+		var temp, hum float64
+		err := rows.Scan(&temp, &hum)
+		if err != nil {
+			return nil, err
+		}
+		temperatures = append(temperatures, temp)
+		humidities = append(humidities, hum)
+	}
+
+	if len(temperatures) == 0 {
+		return nil, nil // No surrounding data found
+	}
+
+	// Calculate aggregates for temperature
+	tempAgg := calculateStatsForSlice(temperatures)
+	humAgg := calculateStatsForSlice(humidities)
+
+	return &AggregatedValues{
+		Temperature: &TemperatureAggregates{
+			Average: tempAgg.Average,
+			Maximum: tempAgg.Maximum,
+			Minimum: tempAgg.Minimum,
+			Count:   tempAgg.Count,
+		},
+		Humidity: &HumidityAggregates{
+			Average: humAgg.Average,
+			Maximum: humAgg.Maximum,
+			Minimum: humAgg.Minimum,
+			Count:   humAgg.Count,
+		},
+	}, nil
+}
+
+// Helper struct for statistical calculations
+type StatResult struct {
+	Average float64
+	Maximum float64
+	Minimum float64
+	Count   int
+}
+
+// calculateStatsForSlice calculates avg, max, min for a slice of float64 values
+func calculateStatsForSlice(values []float64) StatResult {
+	if len(values) == 0 {
+		return StatResult{}
+	}
+
+	sum := 0.0
+	min := values[0]
+	max := values[0]
+
+	for _, val := range values {
+		sum += val
+		if val < min {
+			min = val
+		}
+		if val > max {
+			max = val
+		}
+	}
+
+	return StatResult{
+		Average: sum / float64(len(values)),
+		Maximum: max,
+		Minimum: min,
+		Count:   len(values),
+	}
+}

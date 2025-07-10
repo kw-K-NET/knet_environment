@@ -47,6 +47,15 @@ export class TemperatureAPI {
     queryParams.append('limit', params.limit.toString());
     queryParams.append('time_period', params.time_period);
 
+    // Add aggregation parameters if specified
+    if (params.include_aggregates !== undefined) {
+      queryParams.append('include_aggregates', params.include_aggregates.toString());
+    }
+    
+    if (params.aggregate_window !== undefined) {
+      queryParams.append('aggregate_window', params.aggregate_window.toString());
+    }
+
     const url = `/api/temp/history?${queryParams.toString()}`;
     const response = await apiClient.get<HistoryDataResponse>(url);
     return response.data;
