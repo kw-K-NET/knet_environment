@@ -49,7 +49,7 @@ func getLatestTempSensorData(db *database.Database) gin.HandlerFunc {
 func getTempSensorDataHistory(db *database.Database) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Default values
-		limit := 50
+		limit := 150
 		offset := 0
 		term := 0
 

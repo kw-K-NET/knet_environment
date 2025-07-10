@@ -200,7 +200,7 @@ const HistoryChart: React.FC<HistoryChartProps> = ({ params, refreshTrigger = 0 
   useEffect(() => {
     // Only treat as initial loading if we don't have data yet
     fetchHistoryData(data.length === 0);
-  }, [params.limit, params.time_period, refreshTrigger]);
+  }, [params.limit, params.time_period, params.include_aggregates, params.aggregate_window, refreshTrigger]);
 
   const customTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
@@ -450,9 +450,8 @@ const HistoryChart: React.FC<HistoryChartProps> = ({ params, refreshTrigger = 0 
               connectNulls={false}
             />
             
-            {/* Aggregated Lines - Only show if aggregation is enabled */}
-            {params.include_aggregates && (
-              <>
+            {/* Aggregated Lines - Always shown since aggregation is always enabled */}
+            <>
                 {/* Temperature Aggregated Lines */}
                 <Line
                   yAxisId="temperature"
@@ -521,9 +520,8 @@ const HistoryChart: React.FC<HistoryChartProps> = ({ params, refreshTrigger = 0 
                   dot={false}
                   name="Humidity Minimum"
                   connectNulls={false}
-                />
-              </>
-            )}
+                                 />
+               </>
           </LineChart>
         </ResponsiveContainer>
       </div>

@@ -5,11 +5,11 @@ import DataControls from './DataControls';
 import type { HistoryParams } from '../types/api';
 
 const Dashboard: React.FC = () => {
-  // Always use time period mode with default 1 day
+  // Always use time period mode with default 1 day and aggregation enabled
   const [historyParams, setHistoryParams] = useState<HistoryParams>({
-    limit: 50,
+    limit: 150,
     time_period: '1d',
-    include_aggregates: false,
+    include_aggregates: true, // Always enabled
     aggregate_window: 100,
   });
   
@@ -31,11 +31,11 @@ const Dashboard: React.FC = () => {
   }, [autoRefresh, refreshInterval]);
 
   const handleParamsChange = useCallback((newParams: HistoryParams) => {
-    // Ensure we properly handle all parameters including aggregation
+    // Ensure we properly handle all parameters with aggregation always enabled
     const sanitizedParams: HistoryParams = {
-      limit: 50, // Always 50 for time period mode
+      limit: 150, // Always 50 for time period mode
       time_period: newParams.time_period || '1d',
-      include_aggregates: newParams.include_aggregates || false,
+      include_aggregates: true, // Always enabled
       aggregate_window: newParams.aggregate_window || 100,
     };
     setHistoryParams(sanitizedParams);
