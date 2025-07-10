@@ -41,7 +41,6 @@ const LatestDataCard: React.FC<LatestDataCardProps> = ({ refreshTrigger = 0 }) =
   if (isInitialLoading && !data) {
     return (
       <div className="latest-data-card loading">
-        <h2>Latest Sensor Data</h2>
         <div className="loading-spinner">Loading...</div>
       </div>
     );
@@ -50,7 +49,6 @@ const LatestDataCard: React.FC<LatestDataCardProps> = ({ refreshTrigger = 0 }) =
   if (error && !data) {
     return (
       <div className="latest-data-card error">
-        <h2>Latest Sensor Data</h2>
         <div className="error-message">{error}</div>
         <button onClick={() => fetchLatestData(true)} className="retry-btn">
           Retry
@@ -62,7 +60,6 @@ const LatestDataCard: React.FC<LatestDataCardProps> = ({ refreshTrigger = 0 }) =
   if (!data) {
     return (
       <div className="latest-data-card">
-        <h2>Latest Sensor Data</h2>
         <div className="no-data">No data available</div>
       </div>
     );
@@ -71,7 +68,6 @@ const LatestDataCard: React.FC<LatestDataCardProps> = ({ refreshTrigger = 0 }) =
   return (
     <div className="latest-data-card">
       <div className="card-header">
-        <h2>Latest Sensor Data</h2>
         {isRefreshing && (
           <div className="refresh-indicator" title="Refreshing data...">
             <span className="refresh-spinner">🔄</span>
@@ -80,13 +76,17 @@ const LatestDataCard: React.FC<LatestDataCardProps> = ({ refreshTrigger = 0 }) =
       </div>
       <div className="data-container">
         <div className="sensor-value temperature">
-          <span className="value">{data.temperature.toFixed(1)}</span>
-          <span className="unit">°C</span>
+          <div className="value-container">
+            <span className="value">{data.temperature.toFixed(1)}</span>
+            <span className="unit">°C</span>
+          </div>
           <span className="label">Temperature</span>
         </div>
         <div className="sensor-value humidity">
-          <span className="value">{data.humidity.toFixed(1)}</span>
-          <span className="unit">%</span>
+          <div className="value-container">
+            <span className="value">{data.humidity.toFixed(1)}</span>
+            <span className="unit">%</span>
+          </div>
           <span className="label">Humidity</span>
         </div>
       </div>

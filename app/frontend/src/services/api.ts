@@ -38,34 +38,16 @@ export class TemperatureAPI {
   }
 
   /**
-   * Get historical temperature and humidity data
+   * Get historical temperature and humidity data using time period mode
    */
-  static async getHistoryData(params: HistoryParams = {}): Promise<HistoryDataResponse> {
+  static async getHistoryData(params: HistoryParams): Promise<HistoryDataResponse> {
     const queryParams = new URLSearchParams();
     
-    // Add traditional parameters
-    if (params.limit !== undefined) {
-      queryParams.append('limit', params.limit.toString());
-    }
-    if (params.offset !== undefined) {
-      queryParams.append('offset', params.offset.toString());
-    }
-    if (params.term !== undefined) {
-      queryParams.append('term', params.term.toString());
-    }
+    // Always include limit and time_period (simplified API)
+    queryParams.append('limit', params.limit.toString());
+    queryParams.append('time_period', params.time_period);
 
-    // Add time-based parameters
-    if (params.time_period !== undefined) {
-      queryParams.append('time_period', params.time_period);
-    }
-    if (params.start_time !== undefined) {
-      queryParams.append('start_time', params.start_time);
-    }
-    if (params.end_time !== undefined) {
-      queryParams.append('end_time', params.end_time);
-    }
-
-    const url = `/api/temp/history${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    const url = `/api/temp/history?${queryParams.toString()}`;
     const response = await apiClient.get<HistoryDataResponse>(url);
     return response.data;
   }

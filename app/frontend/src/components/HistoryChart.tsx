@@ -161,6 +161,7 @@ const HistoryChart: React.FC<HistoryChartProps> = ({ params, refreshTrigger = 0 
         total_count: response.total_count,
         returned_count: response.returned_count,
       });
+      console.log(responseInfo);
     } catch (err) {
       setError('Failed to fetch historical data');
       console.error('Error fetching historical data:', err);
@@ -173,7 +174,7 @@ const HistoryChart: React.FC<HistoryChartProps> = ({ params, refreshTrigger = 0 
   useEffect(() => {
     // Only treat as initial loading if we don't have data yet
     fetchHistoryData(data.length === 0);
-  }, [params.limit, params.offset, params.term, params.time_period, params.start_time, params.end_time, refreshTrigger]);
+  }, [params.limit, params.time_period, refreshTrigger]);
 
   const customTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
@@ -207,64 +208,62 @@ const HistoryChart: React.FC<HistoryChartProps> = ({ params, refreshTrigger = 0 
     return null;
   };
 
-  const getTimePeriodLabel = (period?: string) => {
-    switch (period) {
-      case '1d': return 'Last 24 Hours';
-      case '1w': return 'Last 7 Days';
-      case '1m': return 'Last 30 Days';
-      case '1y': return 'Last 365 Days';
-      default: return 'Time Period';
+  const calculateYAxisRanges = () => {
+    // Default ranges
+    const defaultTempRange = { min: 10, max: 40 };
+    const defaultHumidityRange = { min: 20, max: 80 };
+    
+    // Filter out null values and get actual data
+    const validData = data.filter(d => d.temperature !== null && d.humidity !== null);
+    
+    if (validData.length === 0) {
+      // No valid data, use default ranges
+      return {
+        temperature: [defaultTempRange.min, defaultTempRange.max],
+        humidity: [defaultHumidityRange.min, defaultHumidityRange.max]
+      };
     }
-  };
-
-  const formatTimeRange = () => {
-    if (!responseInfo || !responseInfo.time_period || !responseInfo.start_time || !responseInfo.end_time) {
-      return null;
+    
+    // Find actual min/max values in the data
+    const temperatures = validData.map(d => d.temperature!);
+    const humidities = validData.map(d => d.humidity!);
+    
+    const actualTempMin = Math.min(...temperatures);
+    const actualTempMax = Math.max(...temperatures);
+    const actualHumidityMin = Math.min(...humidities);
+    const actualHumidityMax = Math.max(...humidities);
+    
+    // Calculate temperature range
+    let tempMin = defaultTempRange.min;
+    let tempMax = defaultTempRange.max;
+    
+    if (actualTempMin < defaultTempRange.min) {
+      // Expand below default range by 10%
+      tempMin = actualTempMin - (Math.abs(actualTempMin) * 0.1);
     }
-
-    const startTime = new Date(responseInfo.start_time);
-    const endTime = new Date(responseInfo.end_time);
     
-    const formatDate = (date: Date) => {
-      switch (responseInfo.time_period) {
-        case '1d': 
-          return format(date, 'MMM dd HH:mm');
-        case '1w':
-          return format(date, 'MMM dd HH:mm');
-        case '1m':
-          return format(date, 'MMM dd');
-        case '1y':
-          return format(date, 'yyyy/MM');
-        default:
-          return format(date, 'MMM dd HH:mm');
-      }
-    };
-
-    return `${formatDate(startTime)} → ${formatDate(endTime)}`;
-  };
-
-  const getDataAvailability = () => {
-    if (!responseInfo?.time_period) return null;
+    if (actualTempMax > defaultTempRange.max) {
+      // Expand above default range by 10%
+      tempMax = actualTempMax + (Math.abs(actualTempMax) * 0.1);
+    }
     
-    const nonNullCount = data.filter(d => d.temperature !== null && d.humidity !== null).length;
-    const percentage = Math.round((nonNullCount / data.length) * 100);
+    // Calculate humidity range
+    let humidityMin = defaultHumidityRange.min;
+    let humidityMax = defaultHumidityRange.max;
     
-    return { nonNullCount, percentage };
-  };
-
-  const getMostRecentDataInfo = () => {
-    if (!responseInfo?.time_period || data.length === 0) return null;
+    if (actualHumidityMin < defaultHumidityRange.min) {
+      // Expand below default range by 10%, but never go below 0
+      humidityMin = Math.max(0, actualHumidityMin - (Math.abs(actualHumidityMin) * 0.1));
+    }
     
-    // In time period mode, the last data point is guaranteed to be the most recent
-    const mostRecentPoint = data[data.length - 1];
-    
-    // Check if it's actual data or null
-    const hasRecentData = mostRecentPoint && mostRecentPoint.temperature !== null;
+    if (actualHumidityMax > defaultHumidityRange.max) {
+      // Expand above default range by 10%, but never go above 100
+      humidityMax = Math.min(100, actualHumidityMax + (Math.abs(actualHumidityMax) * 0.1));
+    }
     
     return {
-      hasRecentData,
-      timestamp: mostRecentPoint?.timestamp,
-      point: mostRecentPoint
+      temperature: [Math.round(tempMin), Math.round(tempMax)],
+      humidity: [Math.round(humidityMin), Math.round(humidityMax)]
     };
   };
 
@@ -312,63 +311,19 @@ const HistoryChart: React.FC<HistoryChartProps> = ({ params, refreshTrigger = 0 
     );
   }
 
+  // Calculate Y-axis ranges once for both axes
+  const yAxisRanges = calculateYAxisRanges();
+
   return (
     <div className="history-chart">
       <div className="chart-header">
         <div className="chart-header-left">
           <h2>Historical Data</h2>
-          {responseInfo?.time_period && formatTimeRange() && (
-            <div className="time-range-display">
-              <span className="time-range">{formatTimeRange()}</span>
-              {(() => {
-                const availability = getDataAvailability();
-                const recentInfo = getMostRecentDataInfo();
-                
-                return (
-                  <div className="data-status">
-                    {availability && availability.percentage < 100 && (
-                      <span className="data-availability">
-                        {availability.nonNullCount}/{data.length} points ({availability.percentage}% data available)
-                      </span>
-                    )}
-                    {recentInfo && (
-                      <span className={`recent-data-status ${recentInfo.hasRecentData ? 'has-data' : 'no-data'}`}>
-                        Most recent: {recentInfo.hasRecentData 
-                          ? `${format(new Date(recentInfo.timestamp!), 'MMM dd HH:mm:ss')} ✓`
-                          : 'No recent data available'
-                        }
-                      </span>
-                    )}
-                  </div>
-                );
-              })()}
-            </div>
-          )}
         </div>
         <div className="chart-header-right">
           {isRefreshing && (
             <div className="refresh-indicator" title="Refreshing data...">
               <span className="refresh-spinner">🔄</span>
-            </div>
-          )}
-          {responseInfo && (
-            <div className="chart-info">
-              <span>Points: {data.length}</span>
-              {responseInfo.time_period ? (
-                <>
-                  <span>Period: {getTimePeriodLabel(responseInfo.time_period)}</span>
-                  {responseInfo.total_count && (
-                    <span>Available: {responseInfo.total_count}</span>
-                  )}
-                  <span className="recent-guarantee">Recent data ✓</span>
-                </>
-              ) : (
-                <>
-                  <span>Limit: {responseInfo.limit}</span>
-                  {responseInfo.term > 0 && <span>Interval: {responseInfo.term}</span>}
-                  {responseInfo.term === 0 && <span>Offset: {responseInfo.offset}</span>}
-                </>
-              )}
             </div>
           )}
         </div>
@@ -395,14 +350,14 @@ const HistoryChart: React.FC<HistoryChartProps> = ({ params, refreshTrigger = 0 
             <YAxis 
               yAxisId="temperature"
               orientation="left"
-              domain={['dataMin - 2', 'dataMax + 2']}
+              domain={yAxisRanges.temperature}
               tick={{ fontSize: 12 }}
               label={{ value: 'Temperature (°C)', angle: -90, position: 'insideLeft' }}
             />
             <YAxis 
               yAxisId="humidity"
               orientation="right"
-              domain={[0, 100]}
+              domain={yAxisRanges.humidity}
               tick={{ fontSize: 12 }}
               label={{ value: 'Humidity (%)', angle: 90, position: 'insideRight' }}
             />

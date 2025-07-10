@@ -37,11 +37,6 @@ const TimePeriodSelector: React.FC<TimePeriodSelectorProps> = ({
 }) => {
   return (
     <div className="time-period-selector">
-      <label className="time-period-label">
-        Time Period:
-        <span className="control-description">Complete time range with most recent data always included</span>
-      </label>
-      
       <div className="time-period-options">
         {TIME_PERIOD_OPTIONS.map((option) => (
           <label key={option.value} className="time-period-option">
@@ -53,10 +48,7 @@ const TimePeriodSelector: React.FC<TimePeriodSelectorProps> = ({
               onChange={(e) => onPeriodChange(e.target.value)}
               disabled={disabled}
             />
-            <div className="option-content">
-              <span className="option-label">{option.label}</span>
-              <span className="option-description">{option.description}</span>
-            </div>
+            <span className="option-label">{option.label}</span>
           </label>
         ))}
       </div>

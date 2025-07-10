@@ -2,20 +2,19 @@ import { useState, useEffect, useCallback } from 'react';
 import LatestDataCard from './LatestDataCard';
 import HistoryChart from './HistoryChart';
 import DataControls from './DataControls';
-import TemperatureAPI from '../services/api';
 import type { HistoryParams } from '../types/api';
 
 const Dashboard: React.FC = () => {
+  // Always use time period mode with default 1 day
   const [historyParams, setHistoryParams] = useState<HistoryParams>({
     limit: 50,
-    time_period: '1d', // Default to 1 day time period
+    time_period: '1d',
   });
   
   const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
-  const [autoRefresh, setAutoRefresh] = useState<boolean>(true);
-  const [refreshInterval, setRefreshInterval] = useState<number>(30); // seconds
-  const [apiHealth, setApiHealth] = useState<boolean | null>(null);
-  const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
+  const [autoRefresh] = useState<boolean>(true);
+  const [refreshInterval] = useState<number>(30); // seconds
+  const [, setLastRefresh] = useState<Date>(new Date());
 
   // Auto-refresh functionality
   useEffect(() => {
@@ -29,88 +28,17 @@ const Dashboard: React.FC = () => {
     return () => clearInterval(interval);
   }, [autoRefresh, refreshInterval]);
 
-  // Check API health on mount
-  useEffect(() => {
-    const checkHealth = async () => {
-      try {
-        await TemperatureAPI.checkHealth();
-        setApiHealth(true);
-      } catch (error) {
-        setApiHealth(false);
-        console.error('API health check failed:', error);
-      }
-    };
-
-    checkHealth();
-  }, []);
-
-  const handleManualRefresh = useCallback(() => {
-    setRefreshTrigger(prev => prev + 1);
-    setLastRefresh(new Date());
-  }, []);
-
   const handleParamsChange = useCallback((newParams: HistoryParams) => {
-    setHistoryParams(newParams);
-  }, []);
-
-  const handleAutoRefreshToggle = useCallback(() => {
-    setAutoRefresh(prev => !prev);
-  }, []);
-
-  const handleIntervalChange = useCallback((interval: number) => {
-    setRefreshInterval(interval);
+    // Ensure we only accept time period parameters
+    const sanitizedParams: HistoryParams = {
+      limit: 50, // Always 50 for time period mode
+      time_period: newParams.time_period || '1d',
+    };
+    setHistoryParams(sanitizedParams);
   }, []);
 
   return (
     <div className="dashboard">
-      <header className="dashboard-header">
-        <h1>Temperature & Humidity Monitoring Dashboard</h1>
-        
-        <div className="dashboard-controls">
-          <div className="api-status">
-            <span className={`status-indicator ${apiHealth === true ? 'healthy' : apiHealth === false ? 'error' : 'unknown'}`}>
-              {apiHealth === true ? '🟢' : apiHealth === false ? '🔴' : '🟡'}
-            </span>
-            <span>API Status: {apiHealth === true ? 'Healthy' : apiHealth === false ? 'Error' : 'Checking...'}</span>
-          </div>
-
-          <div className="refresh-controls">
-            <button
-              onClick={handleManualRefresh}
-              className="refresh-btn"
-              title="Refresh data manually"
-            >
-              Refresh
-            </button>
-            
-            <label className="auto-refresh-control">
-              <input
-                type="checkbox"
-                checked={autoRefresh}
-                onChange={handleAutoRefreshToggle}
-              />
-              Auto-refresh
-            </label>
-
-            {autoRefresh && (
-              <select
-                value={refreshInterval}
-                onChange={(e) => handleIntervalChange(Number(e.target.value))}
-                className="interval-select"
-              >
-                <option value={30}>30s</option>
-                <option value={60}>1m</option>
-                <option value={300}>5m</option>
-              </select>
-            )}
-          </div>
-
-          <div className="last-refresh">
-            Last refresh: {lastRefresh.toLocaleTimeString()}
-          </div>
-        </div>
-      </header>
-
       <main className="dashboard-content">
         <div className="dashboard-grid">
           {/* Latest Data Section */}
@@ -118,7 +46,7 @@ const Dashboard: React.FC = () => {
             <LatestDataCard refreshTrigger={refreshTrigger} />
           </section>
 
-          {/* Controls Section */}
+          {/* Time Period Controls Section */}
           <aside className="controls-section">
             <DataControls
               params={historyParams}
@@ -140,7 +68,18 @@ const Dashboard: React.FC = () => {
       <footer className="dashboard-footer">
         <div className="footer-info">
           <span>K-NET Environment Monitoring System</span>
-          <span>Backend API: {window.location.hostname}/api/</span>
+          <a 
+            href="https://github.com/kw-K-NET/knet_environment" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="github-link"
+            title="View source code on GitHub"
+          >
+            <svg className="github-icon" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 0C5.374 0 0 5.373 0 12 0 17.302 3.438 21.8 8.207 23.387c.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.300 24 12c0-6.627-5.373-12-12-12z"/>
+            </svg>
+            GitHub
+          </a>
         </div>
       </footer>
     </div>

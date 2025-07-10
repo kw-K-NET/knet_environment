@@ -285,6 +285,17 @@
   border-color: #feb2b2;
 }
 
+.yaxis-range-info {
+  font-size: 0.75rem;
+  color: #3182ce;
+  background: #ebf8ff;
+  border: 1px solid #90cdf4;
+  font-weight: 500;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-family: 'Courier New', monospace;
+}
+
 .recent-guarantee {
   color: #38a169 !important;
   background: #f0fff4 !important;
@@ -516,6 +527,7 @@
   font-weight: 500;
   font-size: 0.875rem;
   color: #374151;
+  margin-left: 0.5rem;
 }
 
 .option-description {
@@ -550,40 +562,6 @@
   margin: 0;
   flex-shrink: 0;
   margin-top: 0.125rem;
-}
-
-.mode-info {
-  display: flex;
-  flex-direction: column;
-  gap: 0.125rem;
-}
-
-.mode-info span {
-  font-weight: 500;
-  color: #374151;
-}
-
-.mode-info small {
-  font-size: 0.75rem;
-  color: #6b7280;
-  font-weight: 400;
-}
-
-/* Mode Selector Enhancements */
-.mode-selector .radio-label {
-  border: 1px solid #e5e7eb;
-  border-radius: 0.5rem;
-  padding: 0.75rem;
-  background: white;
-}
-
-.mode-selector .radio-label:hover {
-  border-color: #8A1601;
-  background: #fef2f2;
-}
-
-.mode-selector input[type="radio"]:checked + .mode-info span {
-  color: #8A1601;
 }
 
 /* Loading and Error States */
@@ -663,6 +641,27 @@
   font-size: 0.875rem;
   flex-wrap: wrap;
   gap: 1rem;
+}
+
+.value-container {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.github-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: rgba(255, 255, 255, 0.8);
+  text-decoration: none;
+}
+
+.github-icon {
+  width: 1rem;
+  height: 1rem;
 }
 
 /* Responsive Design */
