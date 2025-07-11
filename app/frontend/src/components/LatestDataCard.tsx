@@ -68,11 +68,9 @@ const LatestDataCard: React.FC<LatestDataCardProps> = ({ refreshTrigger = 0 }) =
   return (
     <div className="latest-data-card">
       <div className="card-header">
-        {isRefreshing && (
-          <div className="refresh-indicator" title="Refreshing data...">
-            <span className="refresh-spinner">🔄</span>
-          </div>
-        )}
+        <div className={`refresh-indicator ${isRefreshing ? 'visible' : 'hidden'}`} title="Refreshing data...">
+          <span className="refresh-spinner">🔄</span>
+        </div>
         {data.is_outlier && (
           <div className="outlier-indicator" title="Current readings may be unreliable (outlier detected)">
             ⚠️ 센서이상

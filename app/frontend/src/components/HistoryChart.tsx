@@ -378,7 +378,6 @@ const HistoryChart: React.FC<HistoryChartProps> = ({ params, refreshTrigger = 0 
   if (isInitialLoading && data.length === 0) {
     return (
       <div className="history-chart loading">
-        <h2>Historical Data</h2>
         <div className="loading-spinner">Loading chart...</div>
       </div>
     );
@@ -387,7 +386,6 @@ const HistoryChart: React.FC<HistoryChartProps> = ({ params, refreshTrigger = 0 
   if (error && data.length === 0) {
     return (
       <div className="history-chart error">
-        <h2>Historical Data</h2>
         <div className="error-message">{error}</div>
         <button onClick={() => fetchHistoryData(true)} className="retry-btn">
           Retry
@@ -399,7 +397,6 @@ const HistoryChart: React.FC<HistoryChartProps> = ({ params, refreshTrigger = 0 
   if (data.length === 0) {
     return (
       <div className="history-chart">
-        <h2>Historical Data</h2>
         <div className="no-data">No historical data available</div>
       </div>
     );
@@ -412,14 +409,11 @@ const HistoryChart: React.FC<HistoryChartProps> = ({ params, refreshTrigger = 0 
     <div className="history-chart">
       <div className="chart-header">
         <div className="chart-header-left">
-          <h2>Historical Data</h2>
         </div>
         <div className="chart-header-right">
-          {isRefreshing && (
-            <div className="refresh-indicator" title="Refreshing data...">
-              <span className="refresh-spinner">🔄</span>
-            </div>
-          )}
+          <div className={`refresh-indicator ${isRefreshing ? 'visible' : 'hidden'}`} title="Refreshing data...">
+            <span className="refresh-spinner">🔄</span>
+          </div>
         </div>
       </div>
       
@@ -478,7 +472,7 @@ const HistoryChart: React.FC<HistoryChartProps> = ({ params, refreshTrigger = 0 
               connectNulls={false}
             />
             
-            {/* Aggregated Lines - Always shown since aggregation is always enabled */}
+            {/* Aggregated Lines - Hidden from legend but visible in chart */}
             <>
                 {/* Temperature Aggregated Lines */}
                 <Line
@@ -489,7 +483,7 @@ const HistoryChart: React.FC<HistoryChartProps> = ({ params, refreshTrigger = 0 
                   strokeWidth={1}
                   strokeDasharray="5 5"
                   dot={false}
-                  name="Temp Average"
+                  legendType="none"
                   connectNulls={false}
                 />
                 <Line
@@ -500,7 +494,7 @@ const HistoryChart: React.FC<HistoryChartProps> = ({ params, refreshTrigger = 0 
                   strokeWidth={1}
                   strokeDasharray="2 2"
                   dot={false}
-                  name="Temp Maximum"
+                  legendType="none"
                   connectNulls={false}
                 />
                 <Line
@@ -511,7 +505,7 @@ const HistoryChart: React.FC<HistoryChartProps> = ({ params, refreshTrigger = 0 
                   strokeWidth={1}
                   strokeDasharray="2 2"
                   dot={false}
-                  name="Temp Minimum"
+                  legendType="none"
                   connectNulls={false}
                 />
                 
@@ -524,7 +518,7 @@ const HistoryChart: React.FC<HistoryChartProps> = ({ params, refreshTrigger = 0 
                   strokeWidth={1}
                   strokeDasharray="5 5"
                   dot={false}
-                  name="Humidity Average"
+                  legendType="none"
                   connectNulls={false}
                 />
                 <Line
@@ -535,7 +529,7 @@ const HistoryChart: React.FC<HistoryChartProps> = ({ params, refreshTrigger = 0 
                   strokeWidth={1}
                   strokeDasharray="2 2"
                   dot={false}
-                  name="Humidity Maximum"
+                  legendType="none"
                   connectNulls={false}
                 />
                 <Line
@@ -546,7 +540,7 @@ const HistoryChart: React.FC<HistoryChartProps> = ({ params, refreshTrigger = 0 
                   strokeWidth={1}
                   strokeDasharray="2 2"
                   dot={false}
-                  name="Humidity Minimum"
+                  legendType="none"
                   connectNulls={false}
                                  />
                </>

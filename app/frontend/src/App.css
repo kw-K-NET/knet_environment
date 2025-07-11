@@ -136,6 +136,7 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1.5rem;
+  min-height: 24px; /* Ensure consistent height */
 }
 
 .data-container {
@@ -254,6 +255,8 @@
   display: flex;
   align-items: center;
   gap: 1rem;
+  min-height: 24px; /* Ensure consistent height */
+  min-width: 100px; /* Reserve space for refresh indicator */
 }
 
 .chart-header h2 {
@@ -645,6 +648,19 @@
   gap: 0.5rem;
   color: #6b7280;
   font-size: 0.875rem;
+  transition: opacity 0.2s ease-in-out;
+  min-width: 80px; /* Reserve minimum space to prevent layout shifts */
+  justify-content: flex-end;
+}
+
+.refresh-indicator.visible {
+  opacity: 1;
+  visibility: visible;
+}
+
+.refresh-indicator.hidden {
+  opacity: 0;
+  visibility: hidden;
 }
 
 .refresh-spinner {
