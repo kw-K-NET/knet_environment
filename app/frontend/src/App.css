@@ -4,6 +4,7 @@
   display: flex;
   flex-direction: column;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: linear-gradient(135deg, #b4240b 0%, #771301 100%);
 }
 
 .dashboard-header {
@@ -235,6 +236,49 @@
 
 .sensor-value.outlier .value {
   font-size: 1.8rem;
+}
+
+/* Sensor error indicators */
+.sensor-error-indicator {
+  display: inline-block;
+  color: #dc2626;
+  font-size: 0.75rem;
+  background: rgba(220, 38, 38, 0.1);
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.375rem;
+  border: 1px solid rgba(220, 38, 38, 0.2);
+  font-weight: 600;
+}
+
+.sensor-error-warning {
+  display: inline-block;
+  margin-left: 1rem;
+  color: #dc2626;
+  font-size: 0.75rem;
+  background: rgba(220, 38, 38, 0.1);
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.375rem;
+  border: 1px solid rgba(220, 38, 38, 0.2);
+  font-weight: 500;
+}
+
+.sensor-value.sensor-error {
+  background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+  box-shadow: 0 4px 15px rgba(220, 38, 38, 0.3);
+  animation: pulse-error 2s infinite;
+}
+
+.sensor-value.sensor-error .value {
+  font-size: 1.8rem;
+}
+
+@keyframes pulse-error {
+  0%, 100% {
+    box-shadow: 0 4px 15px rgba(220, 38, 38, 0.3);
+  }
+  50% {
+    box-shadow: 0 4px 20px rgba(220, 38, 38, 0.5);
+  }
 }
 
 /* History Chart */

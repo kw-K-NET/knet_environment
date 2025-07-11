@@ -12,8 +12,18 @@ const LatestDataCard: React.FC<LatestDataCardProps> = ({ refreshTrigger = 0 }) =
   const [isInitialLoading, setIsInitialLoading] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [sensorError, setSensorError] = useState<boolean>(false);
+  const [hasAttemptedRefresh, setHasAttemptedRefresh] = useState<boolean>(false);
 
-  const fetchLatestData = async (isInitial: boolean = false) => {
+  const STALE_DATA_THRESHOLD = 10 * 60 * 1000; // 10 minutes in milliseconds
+
+  const isDataStale = (timestamp: string): boolean => {
+    const lastUpdate = new Date(timestamp).getTime();
+    const now = Date.now();
+    return (now - lastUpdate) > STALE_DATA_THRESHOLD;
+  };
+
+  const fetchLatestData = async (isInitial: boolean = false, isStaleRefresh: boolean = false) => {
     try {
       if (isInitial) {
         setIsInitialLoading(true);
@@ -21,8 +31,30 @@ const LatestDataCard: React.FC<LatestDataCardProps> = ({ refreshTrigger = 0 }) =
         setIsRefreshing(true);
       }
       setError(null);
+      setSensorError(false);
+      
       const response = await TemperatureAPI.getLatestData();
       setData(response);
+
+      // Check if the received data is still stale
+      if (isDataStale(response.timestamp)) {
+        if (isStaleRefresh || hasAttemptedRefresh) {
+          // If this was already a refresh attempt or we've already tried once, mark as sensor error
+          setSensorError(true);
+          console.warn('Sensor error: Data remains stale after refresh attempt');
+        } else {
+          // First time detecting stale data, attempt one more refresh
+          setHasAttemptedRefresh(true);
+          console.warn('Stale data detected, attempting refresh...');
+          setTimeout(() => {
+            fetchLatestData(false, true);
+          }, 1000); // Wait 1 second before retry
+        }
+      } else {
+        // Data is fresh, reset error states
+        setSensorError(false);
+        setHasAttemptedRefresh(false);
+      }
     } catch (err) {
       setError('Failed to fetch latest data');
       console.error('Error fetching latest data:', err);
@@ -36,6 +68,23 @@ const LatestDataCard: React.FC<LatestDataCardProps> = ({ refreshTrigger = 0 }) =
     // Only treat as initial loading if we don't have data yet
     fetchLatestData(data === null);
   }, [refreshTrigger]);
+
+  // Background monitoring for stale data
+  useEffect(() => {
+    if (!data) return;
+
+    const checkStaleData = () => {
+      if (isDataStale(data.timestamp) && !hasAttemptedRefresh && !isRefreshing) {
+        console.log('Background check: Stale data detected, attempting refresh...');
+        fetchLatestData(false, false);
+      }
+    };
+
+    // Check every 2 minutes for stale data
+    const interval = setInterval(checkStaleData, 2 * 60 * 1000);
+
+    return () => clearInterval(interval);
+  }, [data, hasAttemptedRefresh, isRefreshing]);
 
   // Only show loading spinner for initial load (when no data exists)
   if (isInitialLoading && !data) {
@@ -71,30 +120,25 @@ const LatestDataCard: React.FC<LatestDataCardProps> = ({ refreshTrigger = 0 }) =
         <div className={`refresh-indicator ${isRefreshing ? 'visible' : 'hidden'}`} title="Refreshing data...">
           <span className="refresh-spinner">🔄</span>
         </div>
-        {data.is_outlier && (
-          <div className="outlier-indicator" title="Current readings may be unreliable (outlier detected)">
-            ⚠️ 센서이상
-          </div>
-        )}
       </div>
       <div className="data-container">
-        <div className={`sensor-value temperature ${data.is_outlier ? 'outlier' : ''}`}>
+        <div className={`sensor-value temperature ${sensorError ? 'sensor-error' : data.is_outlier ? 'outlier' : ''}`}>
           <div className="value-container">
             <span className="value">
-              {data.is_outlier ? '⚠️' : data.temperature.toFixed(1)}
+              {data.temperature.toFixed(1)}
             </span>
-            {!data.is_outlier && <span className="unit">°C</span>}
+            {<span className="unit">°C</span>}
           </div>
           <span className="label">
             {data.is_outlier ? 'Temperature (Outlier)' : 'Temperature'}
           </span>
         </div>
-        <div className={`sensor-value humidity ${data.is_outlier ? 'outlier' : ''}`}>
+        <div className={`sensor-value humidity ${sensorError ? 'sensor-error' : data.is_outlier ? 'outlier' : ''}`}>
           <div className="value-container">
             <span className="value">
-              {data.is_outlier ? '⚠️' : data.humidity.toFixed(1)}
+              {data.humidity.toFixed(1)}
             </span>
-            {!data.is_outlier && <span className="unit">%</span>}
+            {<span className="unit">%</span>}
           </div>
           <span className="label">
             {data.is_outlier ? 'Humidity (Outlier)' : 'Humidity'}
@@ -103,7 +147,12 @@ const LatestDataCard: React.FC<LatestDataCardProps> = ({ refreshTrigger = 0 }) =
       </div>
       <div className="timestamp">
         Last updated: {format(new Date(data.timestamp), 'yyyy-MM-dd HH:mm:ss')}
-        {data.is_outlier && (
+        {sensorError && (
+          <div className="sensor-error-warning" title="Sensor not responding - data is outdated">
+            🔴 센서 응답 없음
+          </div>
+        )}
+        {!sensorError && data.is_outlier && (
           <div className="outlier-warning" title="Data may be unreliable due to outlier detection">
             ⚠️ 센서이상
           </div>
