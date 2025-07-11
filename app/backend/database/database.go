@@ -75,6 +75,8 @@ func (db *Database) GetTempSensorData(limit, offset int) ([]TempSensorData, erro
 		data = append(data, item)
 	}
 
+	data = markOutliers(data)
+
 	return data, nil
 }
 
@@ -90,6 +92,9 @@ func (db *Database) GetLatestTempSensorData() (*TempSensorData, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// Mark outlier status
+	data.IsOutlier = isTemperatureOutlier(data.Temperature)
 
 	return &data, nil
 }
@@ -143,6 +148,8 @@ func (db *Database) GetTempSensorDataWithTerm(limit, term int) ([]TempSensorData
 		data = append(data, item)
 	}
 
+	data = markOutliers(data)
+
 	return data, nil
 }
 
@@ -170,6 +177,9 @@ func (db *Database) GetTempSensorDataByTimeRange(startTime, endTime time.Time, l
 		}
 		data = append(data, item)
 	}
+
+	// Mark outliers before returning
+	data = markOutliers(data)
 
 	return data, nil
 }
@@ -266,6 +276,8 @@ func (db *Database) GetTempSensorDataWithTimeIntervals(startTime, endTime time.T
 	// Always add the most recent data point as the last point
 	result = append(result, mostRecentData)
 
+	result = markOutliers(result)
+
 	return result, nil
 }
 
@@ -286,6 +298,29 @@ func createEmptyTimeSlots(startTime, endTime time.Time, limit int) []TempSensorD
 	}
 
 	return result
+}
+
+// 이상치는 temp가 3도 이내일 때의 온습도
+// dht22자체문제인거같기도
+func isTemperatureOutlier(temperature float64) bool {
+	return temperature <= 3.0
+}
+
+func markOutliers(data []TempSensorData) []TempSensorData {
+	for i := range data {
+		data[i].IsOutlier = isTemperatureOutlier(data[i].Temperature)
+	}
+	return data
+}
+
+func filterOutliers(values []float64, isOutlier []bool) []float64 {
+	var filtered []float64
+	for i, val := range values {
+		if i < len(isOutlier) && !isOutlier[i] {
+			filtered = append(filtered, val)
+		}
+	}
+	return filtered
 }
 
 // GetDataCountInTimeRange returns the number of records in a time range
@@ -310,6 +345,8 @@ func (db *Database) GetTempSensorDataWithAggregation(baseData []TempSensorData, 
 	// Create a copy of the data to avoid modifying the original
 	result := make([]TempSensorData, len(baseData))
 	copy(result, baseData)
+
+	result = markOutliers(result)
 
 	// For each data point, calculate both default (±3) and configurable aggregated values
 	for i := range result {
@@ -360,6 +397,8 @@ func (db *Database) calculateDefaultAggregatesForDataPoint(dataPoint TempSensorD
 
 	var temperatures []float64
 	var humidities []float64
+	var tempOutliers []bool
+	var humOutliers []bool
 
 	for rows.Next() {
 		var temp, hum float64
@@ -369,15 +408,19 @@ func (db *Database) calculateDefaultAggregatesForDataPoint(dataPoint TempSensorD
 		}
 		temperatures = append(temperatures, temp)
 		humidities = append(humidities, hum)
+		tempOutliers = append(tempOutliers, isTemperatureOutlier(temp))
+		humOutliers = append(humOutliers, isTemperatureOutlier(temp)) // Use same outlier logic for humidity
 	}
 
 	if len(temperatures) == 0 {
 		return nil, nil // No surrounding data found
 	}
 
-	// Calculate averages
-	tempStats := calculateStatsForSlice(temperatures)
-	humStats := calculateStatsForSlice(humidities)
+	filteredTemps := filterOutliers(temperatures, tempOutliers)
+	filteredHums := filterOutliers(humidities, humOutliers)
+
+	tempStats := calculateStatsForSlice(filteredTemps)
+	humStats := calculateStatsForSlice(filteredHums)
 
 	return &DefaultAggregatedValues{
 		Temperature: tempStats.Average,
@@ -411,6 +454,8 @@ func (db *Database) calculateAggregatesForDataPoint(dataPoint TempSensorData, wi
 
 	var temperatures []float64
 	var humidities []float64
+	var tempOutliers []bool
+	var humOutliers []bool
 
 	for rows.Next() {
 		var temp, hum float64
@@ -420,15 +465,19 @@ func (db *Database) calculateAggregatesForDataPoint(dataPoint TempSensorData, wi
 		}
 		temperatures = append(temperatures, temp)
 		humidities = append(humidities, hum)
+		tempOutliers = append(tempOutliers, isTemperatureOutlier(temp))
+		humOutliers = append(humOutliers, isTemperatureOutlier(temp)) // Use same outlier logic for humidity
 	}
 
 	if len(temperatures) == 0 {
 		return nil, nil // No surrounding data found
 	}
 
-	// Calculate aggregates for temperature
-	tempAgg := calculateStatsForSlice(temperatures)
-	humAgg := calculateStatsForSlice(humidities)
+	filteredTemps := filterOutliers(temperatures, tempOutliers)
+	filteredHums := filterOutliers(humidities, humOutliers)
+
+	tempAgg := calculateStatsForSlice(filteredTemps)
+	humAgg := calculateStatsForSlice(filteredHums)
 
 	return &AggregatedValues{
 		Temperature: &TemperatureAggregates{

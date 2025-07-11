@@ -67,17 +67,21 @@ const HistoryChart: React.FC<HistoryChartProps> = ({ params, refreshTrigger = 0 
       return sortedData.map(item => {
         // Backend sends ID=0 for null data points
         const isNullData = item.id === 0;
+        // Exclude outliers from display but maintain time continuity
+        const isOutlier = item.is_outlier;
         
         const chartData: ChartData = {
           timestamp: item.timestamp,
           formattedTime: format(new Date(item.timestamp), timeFormat),
           // Use default aggregated values (±3) for main display, fallback to raw values
-          temperature: isNullData ? null : (item.default_aggregated?.temperature ? Number(item.default_aggregated.temperature.toFixed(1)) : Number(item.temperature.toFixed(1))),
-          humidity: isNullData ? null : (item.default_aggregated?.humidity ? Number(item.default_aggregated.humidity.toFixed(1)) : Number(item.humidity.toFixed(1))),
+          // Set to null for outliers to exclude from display while maintaining graph continuity
+          temperature: (isNullData || isOutlier) ? null : (item.default_aggregated?.temperature ? Number(item.default_aggregated.temperature.toFixed(1)) : Number(item.temperature.toFixed(1))),
+          humidity: (isNullData || isOutlier) ? null : (item.default_aggregated?.humidity ? Number(item.default_aggregated.humidity.toFixed(1)) : Number(item.humidity.toFixed(1))),
         };
 
         // Add configurable aggregated values if available (for overlay lines)
-        if (item.aggregated && !isNullData) {
+        // Only add if not null data and not an outlier
+        if (item.aggregated && !isNullData && !isOutlier) {
           if (item.aggregated.temperature) {
             chartData.tempAvg = Number(item.aggregated.temperature.average.toFixed(1));
             chartData.tempMax = Number(item.aggregated.temperature.maximum.toFixed(1));
@@ -145,16 +149,21 @@ const HistoryChart: React.FC<HistoryChartProps> = ({ params, refreshTrigger = 0 
       }
 
       if (foundData) {
+        // Check if this data point is an outlier
+        const isOutlier = foundData.is_outlier;
+        
         const chartData: ChartData = {
           timestamp: foundData.timestamp,
           formattedTime: format(new Date(foundData.timestamp), timeFormat),
           // Use default aggregated values (±3) for main display, fallback to raw values
-          temperature: foundData.default_aggregated?.temperature ? Number(foundData.default_aggregated.temperature.toFixed(1)) : Number(foundData.temperature.toFixed(1)),
-          humidity: foundData.default_aggregated?.humidity ? Number(foundData.default_aggregated.humidity.toFixed(1)) : Number(foundData.humidity.toFixed(1)),
+          // Set to null for outliers to exclude from display while maintaining graph continuity
+          temperature: isOutlier ? null : (foundData.default_aggregated?.temperature ? Number(foundData.default_aggregated.temperature.toFixed(1)) : Number(foundData.temperature.toFixed(1))),
+          humidity: isOutlier ? null : (foundData.default_aggregated?.humidity ? Number(foundData.default_aggregated.humidity.toFixed(1)) : Number(foundData.humidity.toFixed(1))),
         };
 
         // Add configurable aggregated values if available (for overlay lines)
-        if (foundData.aggregated) {
+        // Only add if not an outlier
+        if (foundData.aggregated && !isOutlier) {
           if (foundData.aggregated.temperature) {
             chartData.tempAvg = Number(foundData.aggregated.temperature.average.toFixed(1));
             chartData.tempMax = Number(foundData.aggregated.temperature.maximum.toFixed(1));

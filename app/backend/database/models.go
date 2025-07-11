@@ -3,14 +3,13 @@ package database
 import "time"
 
 type TempSensorData struct {
-	ID          int       `json:"id" db:"id"`
-	Temperature float64   `json:"temperature" db:"temperature"`
-	Humidity    float64   `json:"humidity" db:"humidity"`
-	Timestamp   time.Time `json:"timestamp" db:"timestamp"`
-	// Default aggregated values for main display (±3 window)
+	ID                int                      `json:"id" db:"id"`
+	Temperature       float64                  `json:"temperature" db:"temperature"`
+	Humidity          float64                  `json:"humidity" db:"humidity"`
+	Timestamp         time.Time                `json:"timestamp" db:"timestamp"`
+	IsOutlier         bool                     `json:"is_outlier"`
 	DefaultAggregated *DefaultAggregatedValues `json:"default_aggregated,omitempty"`
-	// Configurable aggregated values calculated from surrounding data points (±100 points by default)
-	Aggregated *AggregatedValues `json:"aggregated,omitempty"`
+	Aggregated        *AggregatedValues        `json:"aggregated,omitempty"`
 }
 
 type DefaultAggregatedValues struct {

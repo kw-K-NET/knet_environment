@@ -1,13 +1,16 @@
 # Build stage
-FROM node:18-alpine AS builder
+FROM node:24-alpine AS builder
 
 WORKDIR /app
 
 # Copy package files
-COPY package.json ./
+COPY package.json package-lock.json* ./
 
-# Install dependencies (without package-lock.json to avoid optional dependency issues)
-RUN npm install
+# Install dependencies with improved network handling
+RUN npm config set fetch-retries 3 && \
+    npm config set fetch-retry-factor 2 && \
+    npm config set fetch-timeout 60000 && \
+    npm install --no-audit --no-fund
 
 # Copy source code
 COPY . .

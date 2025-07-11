@@ -73,28 +73,46 @@ const LatestDataCard: React.FC<LatestDataCardProps> = ({ refreshTrigger = 0 }) =
             <span className="refresh-spinner">🔄</span>
           </div>
         )}
+        {data.is_outlier && (
+          <div className="outlier-indicator" title="Current readings may be unreliable (outlier detected)">
+            ⚠️ 센서이상
+          </div>
+        )}
       </div>
       <div className="data-container">
-        <div className="sensor-value temperature">
+        <div className={`sensor-value temperature ${data.is_outlier ? 'outlier' : ''}`}>
           <div className="value-container">
-            <span className="value">{data.temperature.toFixed(1)}</span>
-            <span className="unit">°C</span>
+            <span className="value">
+              {data.is_outlier ? '⚠️' : data.temperature.toFixed(1)}
+            </span>
+            {!data.is_outlier && <span className="unit">°C</span>}
           </div>
-          <span className="label">Temperature</span>
+          <span className="label">
+            {data.is_outlier ? 'Temperature (Outlier)' : 'Temperature'}
+          </span>
         </div>
-        <div className="sensor-value humidity">
+        <div className={`sensor-value humidity ${data.is_outlier ? 'outlier' : ''}`}>
           <div className="value-container">
-            <span className="value">{data.humidity.toFixed(1)}</span>
-            <span className="unit">%</span>
+            <span className="value">
+              {data.is_outlier ? '⚠️' : data.humidity.toFixed(1)}
+            </span>
+            {!data.is_outlier && <span className="unit">%</span>}
           </div>
-          <span className="label">Humidity</span>
+          <span className="label">
+            {data.is_outlier ? 'Humidity (Outlier)' : 'Humidity'}
+          </span>
         </div>
       </div>
       <div className="timestamp">
         Last updated: {format(new Date(data.timestamp), 'yyyy-MM-dd HH:mm:ss')}
+        {data.is_outlier && (
+          <div className="outlier-warning" title="Data may be unreliable due to outlier detection">
+            ⚠️ 센서이상
+          </div>
+        )}
         {error && (
           <div className="error-indicator" title={error}>
-            ⚠️ Update failed
+            ⚠️ 새로고침을 해주세요
           </div>
         )}
       </div>
