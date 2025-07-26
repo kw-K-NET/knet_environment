@@ -257,7 +257,7 @@ const HistoryChart: React.FC<HistoryChartProps> = ({ params, refreshTrigger = 0 
           <p className="tooltip-label">{`Time: ${label}`}</p>
           
           {/* Main values */}
-          <p className="tooltip-temp" style={{ color: '#8884d8' }}>
+          <p className="tooltip-temp" style={{ color: '#b4240b' }}>
             {tempValue !== null ? `Temperature: ${tempValue}°C` : 'Temperature: No data'}
           </p>
           <p className="tooltip-humidity" style={{ color: '#82ca9d' }}>
@@ -272,7 +272,7 @@ const HistoryChart: React.FC<HistoryChartProps> = ({ params, refreshTrigger = 0 
               </p>
               
               {dataPoint?.tempAvg !== undefined && (
-                <div style={{ fontSize: '11px', color: '#8884d8' }}>
+                <div style={{ fontSize: '11px', color: '#b4240b' }}>
                   <p>Temp Avg: {dataPoint.tempAvg}°C</p>
                   <p>Temp Max: {dataPoint.tempMax}°C</p>
                   <p>Temp Min: {dataPoint.tempMin}°C</p>
@@ -455,7 +455,7 @@ const HistoryChart: React.FC<HistoryChartProps> = ({ params, refreshTrigger = 0 
               yAxisId="temperature"
               type="monotone"
               dataKey="temperature"
-              stroke="#8884d8"
+              stroke="#b4240b"
               strokeWidth={2}
               dot={false}
               name="Temperature (°C)"
@@ -479,7 +479,7 @@ const HistoryChart: React.FC<HistoryChartProps> = ({ params, refreshTrigger = 0 
                   yAxisId="temperature"
                   type="monotone"
                   dataKey="tempAvg"
-                  stroke="#6366f1"
+                  stroke="#b4240b"
                   strokeWidth={1}
                   strokeDasharray="5 5"
                   dot={false}
@@ -501,7 +501,7 @@ const HistoryChart: React.FC<HistoryChartProps> = ({ params, refreshTrigger = 0 
                   yAxisId="temperature"
                   type="monotone"
                   dataKey="tempMin"
-                  stroke="#3b82f6"
+                  stroke="#b91c1c"
                   strokeWidth={1}
                   strokeDasharray="2 2"
                   dot={false}
