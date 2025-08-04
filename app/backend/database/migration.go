@@ -87,7 +87,21 @@ func (mm *MigrationManager) getAppliedMigrations() (map[string]bool, error) {
 	}
 
 	if !tableExists {
-		// Create schema_version table if it doesn't exist
+		// Check if temp_sensor_data table exists (legacy table)
+		var legacyTableExists bool
+		legacyQuery := `
+			SELECT EXISTS (
+				SELECT FROM information_schema.tables 
+				WHERE table_schema = 'public' 
+				AND table_name = 'temp_sensor_data'
+			)`
+
+		err := mm.db.QueryRow(legacyQuery).Scan(&legacyTableExists)
+		if err != nil {
+			return nil, fmt.Errorf("failed to check temp_sensor_data table: %v", err)
+		}
+
+		// Create schema_version table
 		createTableQuery := `
 			CREATE TABLE schema_version (
 				id SERIAL PRIMARY KEY,
@@ -101,6 +115,22 @@ func (mm *MigrationManager) getAppliedMigrations() (map[string]bool, error) {
 		}
 
 		log.Println("Created schema_version table")
+
+		// If legacy table exists, mark the initial migration as applied
+		if legacyTableExists {
+			insertQuery := `
+				INSERT INTO schema_version (version, description, applied_at) 
+				VALUES ('001_initial_schema', 'Initial schema creation for temp_sensor_data table', CURRENT_TIMESTAMP)
+				ON CONFLICT (version) DO NOTHING`
+
+			if _, err := mm.db.Exec(insertQuery); err != nil {
+				return nil, fmt.Errorf("failed to insert initial migration record: %v", err)
+			}
+
+			log.Println("Detected existing temp_sensor_data table, marked initial migration as applied")
+			return map[string]bool{"001_initial_schema": true}, nil
+		}
+
 		return make(map[string]bool), nil
 	}
 
