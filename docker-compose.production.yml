@@ -35,11 +35,16 @@ services:
       TEMP_SENSOR_HOST: 10.5.12.221
       TEMP_SENSOR_PORT: 80
       TEMP_SENSOR_PATH: /
+      AC_OUTLET_SENSOR_HOST: 10.5.12.222
+      AC_OUTLET_SENSOR_PORT: 80
+      AC_OUTLET_SENSOR_PATH: /
       TEMP_COLLECTION_INTERVAL: 30s
       
       SERVER_PORT: 38333
     ports:
       - "38333:38333"
+    volumes:
+      - ./database/migrations:/app/migrations:ro
     depends_on:
       postgres:
         condition: service_healthy

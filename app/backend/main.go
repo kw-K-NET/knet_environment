@@ -30,6 +30,9 @@ func main() {
 	sensorHost := getEnv("TEMP_SENSOR_HOST")
 	sensorPort := getEnv("TEMP_SENSOR_PORT")
 	sensorPath := getEnv("TEMP_SENSOR_PATH")
+	acOutletSensorHost := getEnv("AC_OUTLET_SENSOR_HOST")
+	acOutletSensorPort := getEnv("AC_OUTLET_SENSOR_PORT")
+	acOutletSensorPath := getEnv("AC_OUTLET_SENSOR_PATH")
 	collectionInterval := getEnv("TEMP_COLLECTION_INTERVAL")
 
 	// Server configuration
@@ -53,16 +56,21 @@ func main() {
 
 	log.Println("Connected to database successfully")
 
-	if err := db.CreateTables(); err != nil {
-		log.Fatalf("Failed to create tables: %v", err)
+	// Run database migrations
+	migrationManager := database.NewMigrationManager(db)
+	migrationsDir := "/app/migrations" // Docker container 내부 경로
+
+	if err := migrationManager.RunMigrations(migrationsDir); err != nil {
+		log.Fatalf("Failed to run database migrations: %v", err)
 	}
 
-	log.Println("Database tables created successfully")
+	log.Println("Database migrations completed successfully")
 
 	sensorURL := fmt.Sprintf("http://%s:%s%s", sensorHost, sensorPort, sensorPath)
-	collector := service.NewTempSensorDataCollector(sensorURL, db)
+	acOutletSensorURL := fmt.Sprintf("http://%s:%s%s", acOutletSensorHost, acOutletSensorPort, acOutletSensorPath)
+	collector := service.NewTempSensorDataCollector(sensorURL, acOutletSensorURL, db)
 
-	log.Printf("Starting periodic data collection from %s every %v", sensorURL, interval)
+	log.Printf("Starting periodic data collection from %s & %s every %v", sensorURL, acOutletSensorURL, interval)
 	collector.StartPeriodicTempCollection(interval)
 
 	if err := collector.CollectTempData(); err != nil {

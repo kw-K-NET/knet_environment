@@ -26,35 +26,26 @@ func NewDatabase(dataSourceName string) (*Database, error) {
 	return &Database{db}, nil
 }
 
+// CreateTables is deprecated - use migrations instead
 func (db *Database) CreateTables() error {
-	query := `
-	CREATE TABLE IF NOT EXISTS temp_sensor_data (
-		id SERIAL PRIMARY KEY,
-		temperature FLOAT NOT NULL,
-		humidity FLOAT NOT NULL,
-		timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-	);
-
-	CREATE INDEX IF NOT EXISTS idx_temp_sensor_data_timestamp ON temp_sensor_data(timestamp);
-	`
-
-	_, err := db.Exec(query)
-	return err
+	// This function is kept for backward compatibility
+	// New code should use the migration system
+	return nil
 }
 
 func (db *Database) InsertTempSensorData(data *TempSensorData) error {
 	query := `
-	INSERT INTO temp_sensor_data (temperature, humidity, timestamp) 
-	VALUES ($1, $2, $3) 
+	INSERT INTO temp_sensor_data (temperature, humidity, ac_outlet_temperature, ac_outlet_humidity, timestamp) 
+	VALUES ($1, $2, $3, $4, $5) 
 	RETURNING id`
 
-	err := db.QueryRow(query, data.Temperature, data.Humidity, data.Timestamp).Scan(&data.ID)
+	err := db.QueryRow(query, data.Temperature, data.Humidity, data.ACOutletTemperature, data.ACOutletHumidity, data.Timestamp).Scan(&data.ID)
 	return err
 }
 
 func (db *Database) GetTempSensorData(limit, offset int) ([]TempSensorData, error) {
 	query := `
-	SELECT id, temperature, humidity, timestamp 
+	SELECT id, temperature, humidity, ac_outlet_temperature, ac_outlet_humidity, timestamp 
 	FROM temp_sensor_data 
 	ORDER BY timestamp DESC 
 	LIMIT $1 OFFSET $2`
@@ -68,7 +59,7 @@ func (db *Database) GetTempSensorData(limit, offset int) ([]TempSensorData, erro
 	var data []TempSensorData
 	for rows.Next() {
 		var item TempSensorData
-		err := rows.Scan(&item.ID, &item.Temperature, &item.Humidity, &item.Timestamp)
+		err := rows.Scan(&item.ID, &item.Temperature, &item.Humidity, &item.ACOutletTemperature, &item.ACOutletHumidity, &item.Timestamp)
 		if err != nil {
 			return nil, err
 		}
@@ -82,13 +73,13 @@ func (db *Database) GetTempSensorData(limit, offset int) ([]TempSensorData, erro
 
 func (db *Database) GetLatestTempSensorData() (*TempSensorData, error) {
 	query := `
-	SELECT id, temperature, humidity, timestamp 
+	SELECT id, temperature, humidity, ac_outlet_temperature, ac_outlet_humidity, timestamp 
 	FROM temp_sensor_data 
 	ORDER BY timestamp DESC 
 	LIMIT 1`
 
 	var data TempSensorData
-	err := db.QueryRow(query).Scan(&data.ID, &data.Temperature, &data.Humidity, &data.Timestamp)
+	err := db.QueryRow(query).Scan(&data.ID, &data.Temperature, &data.Humidity, &data.ACOutletTemperature, &data.ACOutletHumidity, &data.Timestamp)
 	if err != nil {
 		return nil, err
 	}
@@ -127,7 +118,7 @@ func (db *Database) GetTempSensorDataWithTerm(limit, term int) ([]TempSensorData
 	}
 
 	query := fmt.Sprintf(`
-	SELECT id, temperature, humidity, timestamp 
+	SELECT id, temperature, humidity, ac_outlet_temperature, ac_outlet_humidity, timestamp 
 	FROM temp_sensor_data 
 	WHERE id IN (%s)
 	ORDER BY timestamp DESC`, strings.Join(placeholders, ","))
@@ -156,7 +147,7 @@ func (db *Database) GetTempSensorDataWithTerm(limit, term int) ([]TempSensorData
 // GetTempSensorDataByTimeRange retrieves temperature sensor data within a specific time range
 func (db *Database) GetTempSensorDataByTimeRange(startTime, endTime time.Time, limit int) ([]TempSensorData, error) {
 	query := `
-	SELECT id, temperature, humidity, timestamp 
+	SELECT id, temperature, humidity, ac_outlet_temperature, ac_outlet_humidity, timestamp 
 	FROM temp_sensor_data 
 	WHERE timestamp >= $1 AND timestamp <= $2 
 	ORDER BY timestamp DESC 
@@ -171,7 +162,7 @@ func (db *Database) GetTempSensorDataByTimeRange(startTime, endTime time.Time, l
 	var data []TempSensorData
 	for rows.Next() {
 		var item TempSensorData
-		err := rows.Scan(&item.ID, &item.Temperature, &item.Humidity, &item.Timestamp)
+		err := rows.Scan(&item.ID, &item.Temperature, &item.Humidity, &item.ACOutletTemperature, &item.ACOutletHumidity, &item.Timestamp)
 		if err != nil {
 			return nil, err
 		}
@@ -188,7 +179,7 @@ func (db *Database) GetTempSensorDataByTimeRange(startTime, endTime time.Time, l
 func (db *Database) GetTempSensorDataWithTimeIntervals(startTime, endTime time.Time, limit int) ([]TempSensorData, error) {
 	// First, get all data in the time range for sampling
 	query := `
-	SELECT id, temperature, humidity, timestamp 
+	SELECT id, temperature, humidity, ac_outlet_temperature, ac_outlet_humidity, timestamp 
 	FROM temp_sensor_data 
 	WHERE timestamp >= $1 AND timestamp <= $2 
 	ORDER BY timestamp ASC`
@@ -203,7 +194,7 @@ func (db *Database) GetTempSensorDataWithTimeIntervals(startTime, endTime time.T
 	var allData []TempSensorData
 	for rows.Next() {
 		var item TempSensorData
-		err := rows.Scan(&item.ID, &item.Temperature, &item.Humidity, &item.Timestamp)
+		err := rows.Scan(&item.ID, &item.Temperature, &item.Humidity, &item.ACOutletTemperature, &item.ACOutletHumidity, &item.Timestamp)
 		if err != nil {
 			return nil, err
 		}

@@ -32,6 +32,8 @@ func SetupRoutes(db *database.Database) *gin.Engine {
 
 	r.GET("/api/temp/history", getTempSensorDataHistory(db))
 
+	r.GET("/api/migrations/status", getMigrationStatus(db))
+
 	return r
 }
 
@@ -43,6 +45,24 @@ func getLatestTempSensorData(db *database.Database) gin.HandlerFunc {
 			return
 		}
 		c.JSON(http.StatusOK, data)
+	}
+}
+
+func getMigrationStatus(db *database.Database) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		migrationManager := database.NewMigrationManager(db)
+		migrationsDir := "/app/migrations"
+
+		status, err := migrationManager.GetMigrationStatus(migrationsDir)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get migration status"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"migrations": status,
+			"total":      len(status),
+		})
 	}
 }
 
