@@ -132,6 +132,14 @@ const LatestDataCard: React.FC<LatestDataCardProps> = ({ refreshTrigger = 0 }) =
           <span className="label">
             {data.is_outlier ? 'Temperature (Outlier)' : 'Temperature'}
           </span>
+          {data.ac_outlet_temperature && (
+            <div className="ac-outlet-info">
+              <span className="ac-outlet-label">AC Outlet:</span>
+              <span className="ac-outlet-value">
+                {data.ac_outlet_temperature.toFixed(1)}°C
+              </span>
+            </div>
+          )}
         </div>
         <div className={`sensor-value humidity ${sensorError ? 'sensor-error' : data.is_outlier ? 'outlier' : ''}`}>
           <div className="value-container">

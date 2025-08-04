@@ -2,6 +2,8 @@ export interface TempSensorData {
   id: number;
   temperature: number;
   humidity: number;
+  ac_outlet_temperature?: number;
+  ac_outlet_humidity?: number;
   timestamp: string;
   is_outlier: boolean;
   default_aggregated?: DefaultAggregatedValues;
